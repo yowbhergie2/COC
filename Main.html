@@ -1149,7 +1149,7 @@
                           <li class="mb-2"><strong>Used vs Earned:</strong> COC Used must be ≤ COC Earned</li>
                           <li class="mb-2"><strong>Issuance Date:</strong> Must be between last day of earned month and last day of the month after (e.g., Jan 31 to Feb 29 for January, or Dec 31 to Jan 31 for December)</li>
                           <li class="mb-2"><strong>Total Balance Cap:</strong> Adding remaining hours cannot exceed employee's 120-hour total balance</li>
-                          <li class="mb-0"><strong>No Duplicates:</strong> Cannot add duplicate for same employee + month + year</li>
+                          <li class="mb-0"><strong>No Duplicates:</strong> Cannot log multiple historical balances for the same employee + month + year combination. Prevents double-entry</li>
                         </ol>
                         <h6>CTO Availment (4/8 Hour Blocks):</h6>
                         <ul class="mb-0 ps-3">
@@ -2342,19 +2342,26 @@
         orderBy('monthYear', 'desc')
       );
 
-      const unsubscribe = onSnapshot(q, async (snapshot) => {
-        historicalBalancesData = [];
+      const unsubscribe = onSnapshot(q,
+        async (snapshot) => {
+          historicalBalancesData = [];
 
-        for (const docSnapshot of snapshot.docs) {
-          const batch = docSnapshot.data();
-          historicalBalancesData.push({
-            id: docSnapshot.id,
-            ...batch
-          });
+          for (const docSnapshot of snapshot.docs) {
+            const batch = docSnapshot.data();
+            historicalBalancesData.push({
+              id: docSnapshot.id,
+              ...batch
+            });
+          }
+
+          renderHistoricalBalancesTable();
+        },
+        (error) => {
+          console.error('Error loading historical balances:', error);
+          const tbody = document.getElementById('historicalBalancesTableBody');
+          tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">No historical balances migrated yet</td></tr>`;
         }
-
-        renderHistoricalBalancesTable();
-      });
+      );
 
       unsubscribers.push(unsubscribe);
     }
@@ -2596,7 +2603,38 @@
         });
 
         if (result.success) {
-          const message = `Batch ID: ${result.batchId}\n\nCOC Earned: ${result.cocEarned} hours\nCOC Used: ${result.cocUsed} hours\nRemaining: ${result.remainingHours} hours\nValid Until: ${result.validUntil}\nStatus: ${result.status}`;
+          const message = `
+            <div class="table-responsive">
+              <table class="table table-sm mb-0">
+                <tbody>
+                  <tr>
+                    <td class="text-end" style="width: 40%;"><strong>Batch ID:</strong></td>
+                    <td><strong>${result.batchId}</strong></td>
+                  </tr>
+                  <tr>
+                    <td class="text-end"><strong>COC Earned:</strong></td>
+                    <td>${result.cocEarned} hours</td>
+                  </tr>
+                  <tr>
+                    <td class="text-end"><strong>COC Used:</strong></td>
+                    <td>${result.cocUsed} hours</td>
+                  </tr>
+                  <tr>
+                    <td class="text-end"><strong>Remaining:</strong></td>
+                    <td><strong class="text-primary">${result.remainingHours} hours</strong></td>
+                  </tr>
+                  <tr>
+                    <td class="text-end"><strong>Valid Until:</strong></td>
+                    <td>${result.validUntil}</td>
+                  </tr>
+                  <tr>
+                    <td class="text-end"><strong>Status:</strong></td>
+                    <td><strong class="text-success">${result.status}</strong></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          `;
           Modal.success('Historical Balance Migrated!', message);
           form.reset();
           form.classList.remove('was-validated');
