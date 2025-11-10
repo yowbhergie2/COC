@@ -927,6 +927,16 @@ function updateHistoricalBalance_SERVER(data) {
     const earnedMonth = month;
     const earnedYear = year;
 
+    // Get existing document to preserve critical fields
+    const existingDoc = db.getDocument('creditBatches/' + batchId);
+    if (!existingDoc) {
+      return {
+        success: false,
+        error: 'Historical balance not found'
+      };
+    }
+    const existing = existingDoc.obj;
+
     // Same validations as create
     if (cocEarned > 40) {
       return {
@@ -950,7 +960,13 @@ function updateHistoricalBalance_SERVER(data) {
 
     const status = remainingHours > 0 ? 'Active' : 'Used';
 
+    // Preserve critical fields from existing document
     const updateData = {
+      batchId: batchId,
+      employeeId: existing.employeeId,
+      certificateId: 'HISTORICAL',
+      source: 'Historical',
+      isHistorical: true,
       initialHours: cocEarned,
       earnedHours: cocEarned,
       usedHours: cocUsed,
@@ -962,6 +978,8 @@ function updateHistoricalBalance_SERVER(data) {
       status: status,
       earnedMonth: earnedMonth,
       earnedYear: earnedYear,
+      migratedAt: existing.migratedAt,
+      migratedBy: existing.migratedBy,
       updatedAt: new Date().toISOString(),
       updatedBy: Session.getActiveUser().getEmail()
     };
