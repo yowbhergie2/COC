@@ -1894,19 +1894,27 @@
         const earnedYear = parseInt(year);
         const earnedMonth = parseInt(month);
 
+        // Helper function to format date as YYYY-MM-DD without timezone issues
+        const formatDate = (date) => {
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        };
+
         // Min: Last day of earned month (e.g., Jan 31, 2024 for January 2024)
         const lastDayOfEarnedMonth = new Date(earnedYear, earnedMonth, 0);
-        const minDate = lastDayOfEarnedMonth.toISOString().split('T')[0];
+        const minDate = formatDate(lastDayOfEarnedMonth);
 
         // Max: Last day of the month AFTER the earned month
         // (e.g., Feb 29, 2024 for January 2024, or Jan 31, 2025 for December 2024)
         const lastDayOfNextMonth = new Date(earnedYear, earnedMonth + 1, 0);
-        const maxDate = lastDayOfNextMonth.toISOString().split('T')[0];
+        const maxDate = formatDate(lastDayOfNextMonth);
 
         // Default: 1st day of the month AFTER the earned month
         // (e.g., Feb 1, 2024 for January 2024, or Jan 1, 2025 for December 2024)
         const firstDayOfNextMonth = new Date(earnedYear, earnedMonth, 1);
-        const defaultDate = firstDayOfNextMonth.toISOString().split('T')[0];
+        const defaultDate = formatDate(firstDayOfNextMonth);
 
         dateIssuance.min = minDate;
         dateIssuance.max = maxDate;
