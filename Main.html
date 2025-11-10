@@ -2665,13 +2665,34 @@
         // Format month/year
         const monthYear = batch.monthYear || '-';
 
-        // Status badge
+        // Dynamic status calculation (checked at runtime)
+        let actualStatus = batch.status;
         let statusBadge = '';
-        if (batch.status === 'Active') {
+
+        // Check if expired (remainingHours > 0 but expiryDate has passed)
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // Reset to start of day for comparison
+
+        if (batch.remainingHours > 0 && expiryDate !== '-') {
+          const expiry = new Date(expiryDate);
+          expiry.setHours(0, 0, 0, 0);
+
+          // If current date is ON or AFTER expiry date, mark as expired
+          if (today >= expiry) {
+            actualStatus = 'Expired';
+          } else {
+            actualStatus = 'Active';
+          }
+        } else if (batch.remainingHours === 0) {
+          actualStatus = 'Used';
+        }
+
+        // Status badge based on actual (dynamic) status
+        if (actualStatus === 'Active') {
           statusBadge = '<span class="badge bg-success">Active</span>';
-        } else if (batch.status === 'Used') {
+        } else if (actualStatus === 'Used') {
           statusBadge = '<span class="badge bg-secondary">Used</span>';
-        } else if (batch.status === 'Expired') {
+        } else if (actualStatus === 'Expired') {
           statusBadge = '<span class="badge bg-danger">Expired</span>';
         }
 
