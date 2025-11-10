@@ -1035,39 +1035,68 @@
         </div>
       </div>
 
-      <!-- Add Historical Balance Form -->
+      <!-- Employee Selector -->
       <div class="row mb-4">
         <div class="col-12">
           <div class="card">
-            <div class="card-header">
-              <h5 class="mb-0"><i class="bi bi-database-fill-up"></i> Add Historical Balance</h5>
-            </div>
             <div class="card-body">
-              <form id="historicalForm">
-                <div class="row">
-                  <!-- Employee (searchable) -->
-                  <div class="col-md-4 mb-3">
-                    <label class="form-label">Employee <span class="text-danger">*</span></label>
-                    <div class="searchable-select-container">
-                      <div class="search-box">
-                        <i class="bi bi-search search-icon"></i>
-                        <input
-                          type="text"
-                          class="form-control"
-                          id="hist-employee-search"
-                          placeholder="Search employee..."
-                          autocomplete="off"
-                          oninput="filterHistoricalEmployees()"
-                          onfocus="showHistoricalEmployeeDropdown()"
-                        >
-                        <input type="hidden" id="hist-employee" required>
-                      </div>
-                      <div class="searchable-dropdown" id="hist-employee-dropdown" style="display: none;">
-                        <div class="dropdown-list" id="hist-employee-list"></div>
-                      </div>
+              <label class="form-label"><h5><i class="bi bi-person-circle"></i> Select Employee</h5></label>
+              <div class="searchable-select-container">
+                <div class="search-box">
+                  <i class="bi bi-search search-icon"></i>
+                  <input
+                    type="text"
+                    class="form-control form-control-lg"
+                    id="hist-employee-filter-search"
+                    placeholder="Search and select employee to view/add historical balance..."
+                    autocomplete="off"
+                    oninput="filterHistoricalEmployeeFilter()"
+                    onfocus="showHistoricalEmployeeFilterDropdown()"
+                  >
+                  <input type="hidden" id="hist-employee-filter">
+                </div>
+                <div class="searchable-dropdown" id="hist-employee-filter-dropdown" style="display: none;">
+                  <div class="dropdown-list" id="hist-employee-filter-list"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Content Section (shown after employee selection) -->
+      <div id="hist-content-section" style="display: none;">
+
+        <!-- Tabs -->
+        <ul class="nav nav-tabs mb-3" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="tab-add-hist" data-bs-toggle="tab" data-bs-target="#content-add-hist" type="button" role="tab">
+              <i class="bi bi-plus-circle"></i> Add Historical Balance
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-list-hist" data-bs-toggle="tab" data-bs-target="#content-list-hist" type="button" role="tab">
+              <i class="bi bi-list-ul"></i> Historical Balance List
+            </button>
+          </li>
+        </ul>
+
+        <div class="tab-content">
+          <!-- Add Historical Balance Tab -->
+          <div class="tab-pane fade show active" id="content-add-hist" role="tabpanel">
+            <div class="card">
+              <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-database-fill-up"></i> Add Historical Balance</h5>
+              </div>
+              <div class="card-body">
+                <form id="historicalForm">
+                  <div class="row">
+                    <!-- Employee (read-only, pre-filled) -->
+                    <div class="col-md-4 mb-3">
+                      <label class="form-label">Employee <span class="text-danger">*</span></label>
+                      <input type="text" class="form-control" id="hist-employee-name" readonly style="background-color: #f8fafc; font-weight: 600;">
+                      <input type="hidden" id="hist-employee" required>
                     </div>
-                    <div class="invalid-feedback">Please select an employee</div>
-                  </div>
 
                   <!-- Month & Year -->
                   <div class="col-md-2 mb-3">
@@ -1165,21 +1194,18 @@
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Historical Balances List -->
-      <div class="row">
-        <div class="col-12">
+        <!-- Historical Balance List Tab -->
+        <div class="tab-pane fade" id="content-list-hist" role="tabpanel">
           <div class="card">
             <div class="card-header">
-              <h5 class="mb-0"><i class="bi bi-list-ul"></i> Historical Balances</h5>
+              <h5 class="mb-0"><i class="bi bi-list-ul"></i> Historical Balance List</h5>
             </div>
             <div class="card-body">
               <div class="table-responsive">
                 <table class="table table-hover table-sm">
                   <thead>
                     <tr>
-                      <th>Employee</th>
                       <th>Month/Year</th>
                       <th>Earned</th>
                       <th>Used</th>
@@ -1191,13 +1217,15 @@
                     </tr>
                   </thead>
                   <tbody id="historicalBalancesTableBody">
-                    <tr><td colspan="9" class="text-center">Loading...</td></tr>
+                    <tr><td colspan="8" class="text-center text-muted">Select an employee above to view their historical balances</td></tr>
                   </tbody>
                 </table>
               </div>
             </div>
           </div>
         </div>
+
+      </div>
       </div>
     </div>
   </div>
@@ -1577,7 +1605,7 @@
       loadHolidays();
       loadConfiguration();
       loadLibraries();
-      loadHistoricalBalances();
+      // loadHistoricalBalances is now called when an employee is selected
     }
 
     function loadEmployees() {
@@ -1613,6 +1641,7 @@
       // Populate searchable dropdowns
       populateOvertimeEmployeeDropdown();
       populateHistoricalEmployeeDropdown();
+      populateHistoricalEmployeeFilterDropdown();
     }
 
     function populateOvertimeEmployeeDropdown() {
@@ -1809,6 +1838,98 @@
     };
 
     // Historical Balance Employee Dropdown Functions
+    // Employee Filter Dropdown (Main selector)
+    let selectedHistoricalEmployee = null;
+
+    function populateHistoricalEmployeeFilterDropdown() {
+      const dropdown = document.getElementById('hist-employee-filter-list');
+      if (!dropdown) return;
+
+      const activeEmployees = employeesData.filter(emp => emp.isActive);
+
+      if (activeEmployees.length === 0) {
+        dropdown.innerHTML = '<div class="dropdown-no-results">No active employees found</div>';
+        return;
+      }
+
+      dropdown.innerHTML = activeEmployees.map(emp => `
+        <div class="dropdown-item-custom" onclick="selectHistoricalEmployeeFilter('${emp.employeeId}', '${emp.lastName}, ${emp.firstName}')">
+          <span class="employee-name">${emp.lastName}, ${emp.firstName}</span>
+          <span class="employee-details">${emp.employeeId} • ${emp.office} • ${emp.position}</span>
+        </div>
+      `).join('');
+    }
+
+    window.filterHistoricalEmployeeFilter = function() {
+      const searchInput = document.getElementById('hist-employee-filter-search');
+      const dropdown = document.getElementById('hist-employee-filter-list');
+      const searchTerm = searchInput.value.toLowerCase().trim();
+
+      const activeEmployees = employeesData.filter(emp => emp.isActive);
+      let filteredEmployees = activeEmployees;
+
+      if (searchTerm) {
+        filteredEmployees = activeEmployees.filter(emp => {
+          const fullName = `${emp.firstName} ${emp.lastName}`.toLowerCase();
+          const reverseName = `${emp.lastName} ${emp.firstName}`.toLowerCase();
+          const employeeId = emp.employeeId.toLowerCase();
+          return fullName.includes(searchTerm) ||
+                 reverseName.includes(searchTerm) ||
+                 employeeId.includes(searchTerm);
+        });
+      }
+
+      if (filteredEmployees.length === 0) {
+        dropdown.innerHTML = '<div class="dropdown-no-results">No employees found</div>';
+      } else {
+        dropdown.innerHTML = filteredEmployees.map(emp => `
+          <div class="dropdown-item-custom" onclick="selectHistoricalEmployeeFilter('${emp.employeeId}', '${emp.lastName}, ${emp.firstName}')">
+            <span class="employee-name">${emp.lastName}, ${emp.firstName}</span>
+            <span class="employee-details">${emp.employeeId} • ${emp.office} • ${emp.position}</span>
+          </div>
+        `).join('');
+      }
+
+      showHistoricalEmployeeFilterDropdown();
+    };
+
+    window.showHistoricalEmployeeFilterDropdown = function() {
+      const dropdown = document.getElementById('hist-employee-filter-dropdown');
+      if (dropdown) dropdown.style.display = 'block';
+    };
+
+    window.hideHistoricalEmployeeFilterDropdown = function() {
+      const dropdown = document.getElementById('hist-employee-filter-dropdown');
+      if (dropdown) dropdown.style.display = 'none';
+    };
+
+    window.selectHistoricalEmployeeFilter = function(employeeId, name) {
+      const searchInput = document.getElementById('hist-employee-filter-search');
+      const hiddenInput = document.getElementById('hist-employee-filter');
+
+      searchInput.value = `${name} (${employeeId})`;
+      hiddenInput.value = employeeId;
+      selectedHistoricalEmployee = employeeId;
+
+      hideHistoricalEmployeeFilterDropdown();
+
+      // Show content section and pre-fill form
+      document.getElementById('hist-content-section').style.display = 'block';
+      document.getElementById('hist-employee-name').value = `${name} (${employeeId})`;
+      document.getElementById('hist-employee').value = employeeId;
+
+      // Load historical balances for this employee
+      loadHistoricalBalances();
+    };
+
+    // Click outside to close dropdown
+    document.addEventListener('click', function(e) {
+      const container = document.querySelector('#hist-employee-filter-search')?.closest('.searchable-select-container');
+      if (container && !container.contains(e.target)) {
+        hideHistoricalEmployeeFilterDropdown();
+      }
+    });
+
     function populateHistoricalEmployeeDropdown() {
       const dropdown = document.getElementById('hist-employee-list');
       if (!dropdown) return;
@@ -2344,10 +2465,16 @@
     let historicalBalancesData = [];
 
     function loadHistoricalBalances() {
+      if (!selectedHistoricalEmployee) {
+        const tbody = document.getElementById('historicalBalancesTableBody');
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">Select an employee above to view their historical balances</td></tr>`;
+        return;
+      }
+
       const q = query(
         collection(db, 'creditBatches'),
-        where('source', '==', 'Historical'),
-        orderBy('monthYear', 'desc')
+        where('employeeId', '==', selectedHistoricalEmployee),
+        where('source', '==', 'Historical')
       );
 
       const unsubscribe = onSnapshot(q,
@@ -2362,12 +2489,20 @@
             });
           }
 
+          // Sort by monthYear descending (client-side)
+          historicalBalancesData.sort((a, b) => {
+            if (a.monthYear && b.monthYear) {
+              return b.monthYear.localeCompare(a.monthYear);
+            }
+            return 0;
+          });
+
           renderHistoricalBalancesTable();
         },
         (error) => {
           console.error('Error loading historical balances:', error);
           const tbody = document.getElementById('historicalBalancesTableBody');
-          tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">No historical balances migrated yet</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">Error loading data. Please try again.</td></tr>`;
         }
       );
 
@@ -2378,14 +2513,11 @@
       const tbody = document.getElementById('historicalBalancesTableBody');
 
       if (historicalBalancesData.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">No historical balances migrated yet</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">No historical balances found for this employee</td></tr>`;
         return;
       }
 
       tbody.innerHTML = historicalBalancesData.map(batch => {
-        const employee = employeesData.find(emp => emp.employeeId === batch.employeeId);
-        const employeeName = employee ? `${employee.lastName}, ${employee.firstName}` : batch.employeeId;
-
         // Convert Firestore Timestamps to JavaScript Dates
         const convertDate = (dateField) => {
           if (!dateField) return '-';
@@ -2419,7 +2551,6 @@
 
         return `
           <tr>
-            <td>${employeeName}</td>
             <td>${monthYear}</td>
             <td>${batch.initialHours ? batch.initialHours.toFixed(1) : '0.0'}</td>
             <td>${batch.usedHours ? batch.usedHours.toFixed(1) : '0.0'}</td>
@@ -2644,17 +2775,24 @@
             </div>
           `;
           Modal.success('Historical Balance Migrated!', message);
+
+          // Store employee info before reset
+          const employeeName = document.getElementById('hist-employee-name').value;
+          const employeeId = document.getElementById('hist-employee').value;
+
           form.reset();
           form.classList.remove('was-validated');
 
-          // Clear searchable employee input
-          document.getElementById('hist-employee-search').value = '';
-          document.getElementById('hist-employee').value = '';
+          // Restore employee info (since it's pre-filled from the filter)
+          document.getElementById('hist-employee-name').value = employeeName;
+          document.getElementById('hist-employee').value = employeeId;
 
           // Disable Date of Issuance again
           document.getElementById('hist-date-issuance').disabled = true;
 
           calculateHistoricalRemaining();
+
+          // The list will auto-update via onSnapshot listener
         } else {
           Modal.error('Migration Error', result.error);
         }
