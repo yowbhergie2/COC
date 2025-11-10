@@ -2369,13 +2369,13 @@
       link.addEventListener('click', function(e) {
         e.preventDefault();
         const page = this.dataset.page;
-        
+
         document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'));
         document.getElementById(`page-${page}`).classList.add('active');
-        
+
         // Remove active class from ALL nav links first
         document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-        
+
         // Add active class to the clicked link
         this.classList.add('active');
 
@@ -2386,6 +2386,23 @@
           const dropdownToggle = dropdownMenu.previousElementSibling;
           if (dropdownToggle && dropdownToggle.classList.contains('dropdown-toggle')) {
             dropdownToggle.classList.add('active');
+          }
+        }
+
+        // Set default active tabs for Employees and Libraries pages
+        if (page === 'employees') {
+          // Activate the "Active Employees" tab
+          const activeTab = document.querySelector('a[href="#active-employees-tab"]');
+          if (activeTab) {
+            const tab = new bootstrap.Tab(activeTab);
+            tab.show();
+          }
+        } else if (page === 'libraries') {
+          // Activate the "Offices" tab
+          const officesTab = document.querySelector('a[href="#offices-tab"]');
+          if (officesTab) {
+            const tab = new bootstrap.Tab(officesTab);
+            tab.show();
           }
         }
       });
