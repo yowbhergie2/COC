@@ -1891,15 +1891,25 @@
 
         // Set min and max dates based on the selected month
         const [year, month] = monthYear.split('-');
-        const earnedMonth = new Date(year, month - 1, 1);
+        const earnedYear = parseInt(year);
+        const earnedMonth = parseInt(month);
 
-        // Last day of earned month
-        const lastDayOfMonth = new Date(year, month, 0);
-        const minDate = lastDayOfMonth.toISOString().split('T')[0];
+        // Min: Last day of earned month (e.g., Jan 31, 2024 for January 2024)
+        const lastDayOfEarnedMonth = new Date(earnedYear, earnedMonth, 0);
+        const minDate = lastDayOfEarnedMonth.toISOString().split('T')[0];
 
-        // Last day of next month
-        const nextMonth = new Date(year, month, 0);
-        const maxDate = nextMonth.toISOString().split('T')[0];
+        // Max: Last day of the month AFTER the earned month (e.g., Feb 29, 2024 for January 2024)
+        // BUT must be in the same year as the earned year
+        const lastDayOfNextMonth = new Date(earnedYear, earnedMonth + 1, 0);
+
+        let maxDate;
+        // Check if next month is in a different year
+        if (lastDayOfNextMonth.getFullYear() > earnedYear) {
+          // Cap it to Dec 31 of the earned year (for December edge case)
+          maxDate = new Date(earnedYear, 12, 0).toISOString().split('T')[0];
+        } else {
+          maxDate = lastDayOfNextMonth.toISOString().split('T')[0];
+        }
 
         dateIssuance.min = minDate;
         dateIssuance.max = maxDate;
