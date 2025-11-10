@@ -1016,80 +1016,161 @@
 
     <div id="page-historical-balance" class="page-view">
       <h2 class="page-title">Historical Balance Migration</h2>
-      <div class="alert alert-info">
-        <strong><i class="bi bi-info-circle"></i> About This Feature:</strong><br>
-        The Historical Balance feature is designed for migrating existing COC (Compensatory Overtime Credit) balances from your old system into the current system. 
-        It's a <strong>one-time data migration tool</strong>, not for regular ongoing entries.
-      </div>
-      <div class="card">
-        <div class="card-header">
-          <h5 class="mb-0"><i class="bi bi-database-fill-up"></i> Migrate Historical COC Balance</h5>
+
+      <!-- About Section -->
+      <div class="row mb-4">
+        <div class="col-12">
+          <div class="card">
+            <div class="card-body">
+              <h5 class="mb-3"><i class="bi bi-info-circle text-info"></i> About This Feature</h5>
+              <p class="mb-2">
+                The Historical Balance feature is designed for <strong>migrating existing COC (Compensatory Overtime Credit) balances</strong> from your old system into the current system.
+              </p>
+              <p class="mb-0">
+                <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle"></i> One-Time Migration Tool</span>
+                This is not for regular ongoing entries.
+              </p>
+            </div>
+          </div>
         </div>
-        <div class="card-body">
-          <form id="historicalForm">
-            <div class="row">
-              <div class="col-md-6 mb-3">
-                <label class="form-label">Employee <span class="text-danger">*</span></label>
-                <select class="form-select" id="hist-employee" required>
-                  <option value="">Select Employee</option>
-                </select>
-                <div class="invalid-feedback">Please select an employee</div>
+      </div>
+
+      <!-- Two Column Layout -->
+      <div class="row">
+        <!-- Left Column: Form -->
+        <div class="col-lg-5 mb-4">
+          <div class="card">
+            <div class="card-header">
+              <h5 class="mb-0"><i class="bi bi-database-fill-up"></i> Add Historical Balance</h5>
+            </div>
+            <div class="card-body">
+              <form id="historicalForm">
+                <!-- Employee -->
+                <div class="mb-3">
+                  <label class="form-label">Employee <span class="text-danger">*</span></label>
+                  <select class="form-select" id="hist-employee" required>
+                    <option value="">Select Employee</option>
+                  </select>
+                  <div class="invalid-feedback">Please select an employee</div>
+                </div>
+
+                <!-- Month & Year and Date of Issuance -->
+                <div class="row">
+                  <div class="col-md-6 mb-3">
+                    <label class="form-label">Month & Year <span class="text-danger">*</span></label>
+                    <input type="month" class="form-control" id="hist-month-year" required>
+                    <div class="invalid-feedback">Required</div>
+                  </div>
+                  <div class="col-md-6 mb-3">
+                    <label class="form-label">Date of Issuance <span class="text-danger">*</span></label>
+                    <input type="date" class="form-control" id="hist-date-issuance" required>
+                    <div class="invalid-feedback">Required</div>
+                  </div>
+                </div>
+
+                <!-- COC Earned and Used -->
+                <div class="row">
+                  <div class="col-md-6 mb-3">
+                    <label class="form-label">COC Earned (hrs) <span class="text-danger">*</span></label>
+                    <input type="number" class="form-control" id="hist-coc-earned" step="0.5" min="0" max="40" required onchange="calculateHistoricalRemaining()">
+                    <small class="text-muted">Max: 40 hrs/month</small>
+                    <div class="invalid-feedback">0.5 - 40 hours</div>
+                  </div>
+                  <div class="col-md-6 mb-3">
+                    <label class="form-label">COC Used (hrs)</label>
+                    <input type="number" class="form-control" id="hist-coc-used" step="0.5" min="0" value="0" onchange="calculateHistoricalRemaining()">
+                    <small class="text-muted">Must be ≤ Earned</small>
+                  </div>
+                </div>
+
+                <!-- Auto-calculated Fields -->
+                <div class="alert alert-light border mb-3">
+                  <h6 class="mb-2"><i class="bi bi-calculator"></i> Auto-Calculated</h6>
+                  <div class="row">
+                    <div class="col-6 mb-2">
+                      <label class="form-label mb-1 small">Remaining</label>
+                      <input type="text" class="form-control form-control-sm" id="hist-remaining" readonly style="background-color: #f8fafc; font-weight: 600;">
+                    </div>
+                    <div class="col-6 mb-2">
+                      <label class="form-label mb-1 small">Status</label>
+                      <input type="text" class="form-control form-control-sm" id="hist-status" readonly style="background-color: #f8fafc; font-weight: 600;">
+                    </div>
+                    <div class="col-12">
+                      <label class="form-label mb-1 small">Valid Until</label>
+                      <input type="text" class="form-control form-control-sm" id="hist-valid-until" readonly style="background-color: #f8fafc; font-weight: 600;">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Validation Rules Accordion -->
+                <div class="accordion mb-3" id="validationRulesAccordion">
+                  <div class="accordion-item">
+                    <h2 class="accordion-header">
+                      <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#validationRules">
+                        <i class="bi bi-shield-check me-2"></i> Validation Rules
+                      </button>
+                    </h2>
+                    <div id="validationRules" class="accordion-collapse collapse" data-bs-parent="#validationRulesAccordion">
+                      <div class="accordion-body">
+                        <ol class="mb-0 ps-3">
+                          <li class="mb-2"><strong>Monthly Cap:</strong> COC Earned ≤ 40 hours per month</li>
+                          <li class="mb-2"><strong>Used vs Earned:</strong> COC Used must be ≤ COC Earned</li>
+                          <li class="mb-2"><strong>Issuance Date:</strong> Must be between last day of earned month and last day of next month, same year</li>
+                          <li class="mb-2"><strong>Total Balance Cap:</strong> Adding remaining hours cannot exceed employee's 120-hour total balance</li>
+                          <li class="mb-0"><strong>No Duplicates:</strong> Cannot add duplicate for same employee + month + year</li>
+                        </ol>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100">
+                  <i class="bi bi-upload"></i> Migrate Historical Balance
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: Historical Balances List -->
+        <div class="col-lg-7">
+          <div class="card">
+            <div class="card-header">
+              <h5 class="mb-0"><i class="bi bi-list-ul"></i> Historical Balances</h5>
+            </div>
+            <div class="card-body">
+              <!-- Search Box -->
+              <div class="search-box mb-3">
+                <i class="bi bi-search search-icon"></i>
+                <input type="text" class="form-control" id="search-historical" placeholder="Search by employee name, month/year..." oninput="filterHistoricalBalances()">
+                <button class="clear-search" id="clear-historical-search" onclick="clearHistoricalSearch()">
+                  <i class="bi bi-x-circle-fill"></i>
+                </button>
               </div>
-              <div class="col-md-3 mb-3">
-                <label class="form-label">Month & Year <span class="text-danger">*</span></label>
-                <input type="month" class="form-control" id="hist-month-year" required>
-                <div class="invalid-feedback">Please select month and year</div>
-              </div>
-              <div class="col-md-3 mb-3">
-                <label class="form-label">Date of Issuance <span class="text-danger">*</span></label>
-                <input type="date" class="form-control" id="hist-date-issuance" required>
-                <div class="invalid-feedback">Please select date of issuance</div>
+
+              <!-- Table -->
+              <div class="table-responsive">
+                <table class="table table-hover table-sm">
+                  <thead>
+                    <tr>
+                      <th>Employee</th>
+                      <th>Month/Year</th>
+                      <th>Earned</th>
+                      <th>Used</th>
+                      <th>Remaining</th>
+                      <th>Issued</th>
+                      <th>Valid Until</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="historicalBalancesTableBody">
+                    <tr><td colspan="9" class="text-center">Loading...</td></tr>
+                  </tbody>
+                </table>
               </div>
             </div>
-            <div class="row">
-              <div class="col-md-4 mb-3">
-                <label class="form-label">COC Earned (hours) <span class="text-danger">*</span></label>
-                <input type="number" class="form-control" id="hist-coc-earned" step="0.5" min="0" max="40" required onchange="calculateHistoricalRemaining()">
-                <small class="text-muted">Maximum: 40 hours per month</small>
-                <div class="invalid-feedback">Required (0.5 - 40 hours)</div>
-              </div>
-              <div class="col-md-4 mb-3">
-                <label class="form-label">COC Used (hours)</label>
-                <input type="number" class="form-control" id="hist-coc-used" step="0.5" min="0" value="0" onchange="calculateHistoricalRemaining()">
-                <small class="text-muted">Must be ≤ COC Earned</small>
-              </div>
-              <div class="col-md-4 mb-3">
-                <label class="form-label">Remaining Hours</label>
-                <input type="text" class="form-control" id="hist-remaining" readonly style="background-color: #f8fafc; font-weight: 600;">
-              </div>
-            </div>
-            <div class="row">
-              <div class="col-md-6 mb-3">
-                <label class="form-label">Valid Until Date</label>
-                <input type="text" class="form-control" id="hist-valid-until" readonly style="background-color: #f8fafc; font-weight: 600;">
-                <small class="text-muted">Auto-calculated: Date of Issuance + 1 Year - 1 Day</small>
-              </div>
-              <div class="col-md-6 mb-3">
-                <label class="form-label">Status</label>
-                <input type="text" class="form-control" id="hist-status" readonly style="background-color: #f8fafc; font-weight: 600;">
-              </div>
-            </div>
-            
-            <div class="alert alert-warning mt-3">
-              <strong><i class="bi bi-shield-check"></i> Validation Rules:</strong>
-              <ul class="mb-0 mt-2">
-                <li><strong>Rule 1:</strong> COC Earned cannot exceed 40 hours per month</li>
-                <li><strong>Rule 2:</strong> COC Used must be ≤ COC Earned</li>
-                <li><strong>Rule 3:</strong> Date of Issuance must be between last day of earned month and last day of next month, same year</li>
-                <li><strong>Rule 4:</strong> Adding remaining hours cannot exceed employee's 120-hour total balance cap</li>
-                <li><strong>Rule 5:</strong> Cannot add duplicate entry for same employee + month + year</li>
-              </ul>
-            </div>
-            
-            <button type="submit" class="btn btn-primary">
-              <i class="bi bi-upload"></i> Migrate Historical Balance
-            </button>
-          </form>
+          </div>
         </div>
       </div>
     </div>
@@ -1470,6 +1551,7 @@
       loadHolidays();
       loadConfiguration();
       loadLibraries();
+      loadHistoricalBalances();
     }
 
     function loadEmployees() {
@@ -2035,6 +2117,149 @@
     };
 
     document.getElementById('hist-date-issuance').addEventListener('change', calculateHistoricalRemaining);
+
+    // Historical Balances List Management
+    let historicalBalancesData = [];
+    let historicalSearchTerm = '';
+
+    function loadHistoricalBalances() {
+      const q = query(
+        collection(db, 'creditBatches'),
+        where('source', '==', 'Historical'),
+        orderBy('monthYear', 'desc')
+      );
+
+      const unsubscribe = onSnapshot(q, async (snapshot) => {
+        historicalBalancesData = [];
+
+        for (const docSnapshot of snapshot.docs) {
+          const batch = docSnapshot.data();
+          historicalBalancesData.push({
+            id: docSnapshot.id,
+            ...batch
+          });
+        }
+
+        renderHistoricalBalancesTable();
+      });
+
+      unsubscribers.push(unsubscribe);
+    }
+
+    function renderHistoricalBalancesTable() {
+      const tbody = document.getElementById('historicalBalancesTableBody');
+      let filteredData = historicalBalancesData;
+
+      // Apply search filter
+      if (historicalSearchTerm) {
+        const searchLower = historicalSearchTerm.toLowerCase();
+        filteredData = historicalBalancesData.filter(batch => {
+          const employee = employeesData.find(emp => emp.employeeId === batch.employeeId);
+          const employeeName = employee ? `${employee.firstName} ${employee.lastName}`.toLowerCase() : '';
+          const monthYear = batch.monthYear ? batch.monthYear.toLowerCase() : '';
+
+          return employeeName.includes(searchLower) || monthYear.includes(searchLower);
+        });
+      }
+
+      if (filteredData.length === 0) {
+        const message = historicalSearchTerm ? 'No historical balances match your search' : 'No historical balances found';
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">${message}</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filteredData.map(batch => {
+        const employee = employeesData.find(emp => emp.employeeId === batch.employeeId);
+        const employeeName = employee ? `${employee.lastName}, ${employee.firstName}` : batch.employeeId;
+
+        // Format dates
+        const issuedDate = batch.dateOfIssuance ? new Date(batch.dateOfIssuance).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '-';
+        const validUntilDate = batch.expiryDate ? new Date(batch.expiryDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '-';
+
+        // Format month/year
+        const monthYear = batch.monthYear || '-';
+
+        // Status badge
+        let statusBadge = '';
+        if (batch.status === 'Active') {
+          statusBadge = '<span class="badge bg-success">Active</span>';
+        } else if (batch.status === 'Used') {
+          statusBadge = '<span class="badge bg-secondary">Used</span>';
+        } else if (batch.status === 'Expired') {
+          statusBadge = '<span class="badge bg-danger">Expired</span>';
+        }
+
+        return `
+          <tr>
+            <td>${employeeName}</td>
+            <td>${monthYear}</td>
+            <td>${batch.initialHours ? batch.initialHours.toFixed(1) : '0.0'}</td>
+            <td>${batch.usedHours ? batch.usedHours.toFixed(1) : '0.0'}</td>
+            <td><strong>${batch.remainingHours ? batch.remainingHours.toFixed(1) : '0.0'}</strong></td>
+            <td>${issuedDate}</td>
+            <td>${validUntilDate}</td>
+            <td>${statusBadge}</td>
+            <td>
+              <button class="btn btn-sm btn-outline-danger" onclick="deleteHistoricalBalance('${batch.id}')" title="Delete">
+                <i class="bi bi-trash"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    window.filterHistoricalBalances = function() {
+      const searchInput = document.getElementById('search-historical');
+      const clearBtn = document.getElementById('clear-historical-search');
+
+      historicalSearchTerm = searchInput.value;
+
+      // Show/hide clear button
+      if (searchInput.value) {
+        clearBtn.classList.add('visible');
+      } else {
+        clearBtn.classList.remove('visible');
+      }
+
+      renderHistoricalBalancesTable();
+    };
+
+    window.clearHistoricalSearch = function() {
+      const searchInput = document.getElementById('search-historical');
+      const clearBtn = document.getElementById('clear-historical-search');
+
+      searchInput.value = '';
+      historicalSearchTerm = '';
+      clearBtn.classList.remove('visible');
+
+      renderHistoricalBalancesTable();
+    };
+
+    window.deleteHistoricalBalance = async function(batchId) {
+      Modal.confirm(
+        'Delete Historical Balance',
+        'Are you sure you want to delete this historical balance entry? This action cannot be undone.',
+        async function() {
+          try {
+            const result = await new Promise((resolve, reject) => {
+              google.script.run
+                .withSuccessHandler(resolve)
+                .withFailureHandler(reject)
+                .deleteHistoricalBalance_SERVER(batchId);
+            });
+
+            if (result.success) {
+              Modal.success('Success!', 'Historical balance deleted successfully!');
+            } else {
+              Modal.error('Error', result.error);
+            }
+          } catch (error) {
+            Modal.error('Error', 'Error deleting historical balance: ' + error);
+          }
+        }
+      );
+    };
 
     window.generateCertificate = async function() {
       const employeeId = document.getElementById('cert-employee').value;
