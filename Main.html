@@ -1943,6 +1943,12 @@
       document.getElementById('hist-employee-name').value = `${name} (${employeeId})`;
       document.getElementById('hist-employee').value = employeeId;
 
+      // Activate the "Add Historical Balance" tab as default
+      const addTab = document.getElementById('tab-add-hist');
+      if (addTab) {
+        addTab.click();
+      }
+
       // Load historical balances for this employee
       loadHistoricalBalances();
 
