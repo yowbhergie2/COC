@@ -1194,6 +1194,12 @@
     let employeeSearchTerms = { active: '', inactive: '' };
     let librarySearchTerms = { offices: '', positions: '' };
 
+    // Helper to check if tab is currently visible
+    function isTabVisible(tabId) {
+      const tab = document.querySelector(`#${tabId}`);
+      return tab && tab.classList.contains('show') && tab.classList.contains('active');
+    }
+
     window.Modal = {
       _instance: null,
       _callback: null,
@@ -1401,9 +1407,10 @@
         snapshot.forEach((doc) => {
           employeesData.push({ id: doc.id, ...doc.data() });
         });
-        
+
         populateEmployeeDropdowns();
-        renderEmployeesTable();
+        // Only render the active tab initially for better performance
+        renderEmployeesTable('active');
       });
       unsubscribers.push(unsubscribe);
     }
@@ -1421,77 +1428,52 @@
       });
     }
 
-    function renderEmployeesTable() {
-      // Filter employees based on search terms
-      let activeEmployees = employeesData.filter(emp => emp.isActive);
-      let inactiveEmployees = employeesData.filter(emp => !emp.isActive);
+    function renderEmployeesTable(type) {
+      // If no type specified, render both (for initial load only)
+      const typesToRender = type ? [type] : ['active', 'inactive'];
 
-      // Apply search filter to active employees
-      if (employeeSearchTerms.active) {
-        activeEmployees = activeEmployees.filter(emp => {
-          const searchLower = employeeSearchTerms.active.toLowerCase();
-          const fullName = `${emp.firstName} ${emp.lastName}`.toLowerCase();
-          const reverseName = `${emp.lastName} ${emp.firstName}`.toLowerCase();
-          return fullName.includes(searchLower) ||
-                 reverseName.includes(searchLower) ||
-                 (emp.office && emp.office.toLowerCase().includes(searchLower)) ||
-                 (emp.position && emp.position.toLowerCase().includes(searchLower));
-        });
-      }
+      typesToRender.forEach(tabType => {
+        const employees = employeesData.filter(emp =>
+          tabType === 'active' ? emp.isActive : !emp.isActive
+        );
 
-      // Apply search filter to inactive employees
-      if (employeeSearchTerms.inactive) {
-        inactiveEmployees = inactiveEmployees.filter(emp => {
-          const searchLower = employeeSearchTerms.inactive.toLowerCase();
-          const fullName = `${emp.firstName} ${emp.lastName}`.toLowerCase();
-          const reverseName = `${emp.lastName} ${emp.firstName}`.toLowerCase();
-          return fullName.includes(searchLower) ||
-                 reverseName.includes(searchLower) ||
-                 (emp.office && emp.office.toLowerCase().includes(searchLower)) ||
-                 (emp.position && emp.position.toLowerCase().includes(searchLower));
-        });
-      }
+        // Apply search filter
+        let filteredEmployees = employees;
+        const searchTerm = employeeSearchTerms[tabType];
 
-      const activeTableBody = document.getElementById('activeEmployeesTableBody');
-      const inactiveTableBody = document.getElementById('inactiveEmployeesTableBody');
+        if (searchTerm) {
+          const searchLower = searchTerm.toLowerCase();
+          filteredEmployees = employees.filter(emp => {
+            const fullName = `${emp.firstName} ${emp.lastName}`.toLowerCase();
+            const reverseName = `${emp.lastName} ${emp.firstName}`.toLowerCase();
+            return fullName.includes(searchLower) ||
+                   reverseName.includes(searchLower) ||
+                   (emp.office && emp.office.toLowerCase().includes(searchLower)) ||
+                   (emp.position && emp.position.toLowerCase().includes(searchLower));
+          });
+        }
 
-      if (activeEmployees.length === 0) {
-        const message = employeeSearchTerms.active ? 'No employees match your search' : 'No active employees found';
-        activeTableBody.innerHTML = `<tr><td colspan="5" class="text-center">${message}</td></tr>`;
-      } else {
-        activeTableBody.innerHTML = activeEmployees.map(emp => `
-          <tr>
-            <td>${emp.employeeId}</td>
-            <td>${emp.lastName}, ${emp.firstName}</td>
-            <td>${emp.office}</td>
-            <td>${emp.position}</td>
-            <td>
-              <button class="btn btn-sm btn-outline-primary" onclick="editEmployee('${emp.employeeId}')">
-                <i class="bi bi-pencil"></i> Edit
-              </button>
-            </td>
-          </tr>
-        `).join('');
-      }
+        const tableBody = document.getElementById(`${tabType}EmployeesTableBody`);
 
-      if (inactiveEmployees.length === 0) {
-        const message = employeeSearchTerms.inactive ? 'No employees match your search' : 'No inactive employees found';
-        inactiveTableBody.innerHTML = `<tr><td colspan="5" class="text-center">${message}</td></tr>`;
-      } else {
-        inactiveTableBody.innerHTML = inactiveEmployees.map(emp => `
-          <tr>
-            <td>${emp.employeeId}</td>
-            <td>${emp.lastName}, ${emp.firstName}</td>
-            <td>${emp.office}</td>
-            <td>${emp.position}</td>
-            <td>
-              <button class="btn btn-sm btn-outline-primary" onclick="editEmployee('${emp.employeeId}')">
-                <i class="bi bi-pencil"></i> Edit
-              </button>
-            </td>
-          </tr>
-        `).join('');
-      }
+        if (filteredEmployees.length === 0) {
+          const message = searchTerm ? 'No employees match your search' : `No ${tabType} employees found`;
+          tableBody.innerHTML = `<tr><td colspan="5" class="text-center">${message}</td></tr>`;
+        } else {
+          tableBody.innerHTML = filteredEmployees.map(emp => `
+            <tr>
+              <td>${emp.employeeId}</td>
+              <td>${emp.lastName}, ${emp.firstName}</td>
+              <td>${emp.office}</td>
+              <td>${emp.position}</td>
+              <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="editEmployee('${emp.employeeId}')">
+                  <i class="bi bi-pencil"></i> Edit
+                </button>
+              </td>
+            </tr>
+          `).join('');
+        }
+      });
     }
 
     window.filterEmployees = function(type) {
@@ -1507,7 +1489,8 @@
         clearBtn.classList.remove('visible');
       }
 
-      renderEmployeesTable();
+      // Only render the specific tab being filtered
+      renderEmployeesTable(type);
     };
 
     window.clearEmployeeSearch = function(type) {
@@ -1518,7 +1501,8 @@
       employeeSearchTerms[type] = '';
       clearBtn.classList.remove('visible');
 
-      renderEmployeesTable();
+      // Only render the specific tab being cleared
+      renderEmployeesTable(type);
     };
 
     async function loadDashboard() {
@@ -1658,7 +1642,11 @@
             librariesData[libType].push({ id: doc.id, ...doc.data() });
           });
 
-          renderLibraryTable(libType);
+          // Only render the offices tab initially for better performance
+          // Positions tab will be rendered when user switches to it
+          if (libType === 'offices') {
+            renderLibraryTable(libType);
+          }
           populateLibraryDropdowns(libType, snapshot.docs);
         });
       });
@@ -2238,7 +2226,25 @@
 
     document.addEventListener('DOMContentLoaded', () => {
       initFirebase();
-      
+
+      // Lazy rendering for employee tabs - only render when tab is shown
+      document.querySelector('a[href="#active-employees-tab"]')?.addEventListener('shown.bs.tab', function() {
+        renderEmployeesTable('active');
+      });
+
+      document.querySelector('a[href="#inactive-employees-tab"]')?.addEventListener('shown.bs.tab', function() {
+        renderEmployeesTable('inactive');
+      });
+
+      // Lazy rendering for library tabs - only render when tab is shown
+      document.querySelector('a[href="#offices-tab"]')?.addEventListener('shown.bs.tab', function() {
+        renderLibraryTable('offices');
+      });
+
+      document.querySelector('a[href="#positions-tab"]')?.addEventListener('shown.bs.tab', function() {
+        renderLibraryTable('positions');
+      });
+
       // Fix for Bootstrap tabs not firing correctly on first click
       document.querySelectorAll('#employeeTabs a[data-bs-toggle="tab"], #libraryTabs a[data-bs-toggle="tab"]').forEach(tabEl => {
         tabEl.addEventListener('click', function (event) {
@@ -2252,7 +2258,7 @@
           }
         });
       });
-      
+
       // Fix dropdown hover state persistence
       document.querySelectorAll('.dropdown-item').forEach(item => {
         item.addEventListener('click', function() {
