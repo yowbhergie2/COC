@@ -752,16 +752,8 @@ function migrateHistoricalBalance_SERVER(data) {
     
     const lastDayOfEarnedMonth = new Date(earnedYear, earnedMonth, 0);
     const lastDayOfNextMonth = new Date(earnedYear, earnedMonth + 1, 0);
-    
-    const issuanceYear = dateOfIssuance.getFullYear();
-    
-    if (issuanceYear !== earnedYear) {
-      return {
-        success: false,
-        error: 'Date of Issuance must be in the same year as the earned year'
-      };
-    }
-    
+
+    // Date range validation - allows December to span into next year
     if (dateOfIssuance < lastDayOfEarnedMonth || dateOfIssuance > lastDayOfNextMonth) {
       return {
         success: false,
@@ -824,8 +816,13 @@ function migrateHistoricalBalance_SERVER(data) {
       batchId: batchId,
       employeeId: data.employeeId,
       certificateId: 'HISTORICAL',
+      source: 'Historical',
+      initialHours: cocEarned,
       earnedHours: cocEarned,
+      usedHours: cocUsed,
       remainingHours: remainingHours,
+      monthYear: monthYear,
+      dateOfIssuance: dateOfIssuance.toISOString(),
       issueDate: dateOfIssuance.toISOString(),
       expiryDate: expiryDate.toISOString(),
       status: status,
