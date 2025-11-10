@@ -1035,120 +1035,146 @@
         </div>
       </div>
 
-      <!-- Two Column Layout -->
-      <div class="row">
-        <!-- Left Column: Form -->
-        <div class="col-lg-5 mb-4">
+      <!-- Add Historical Balance Form -->
+      <div class="row mb-4">
+        <div class="col-12">
           <div class="card">
             <div class="card-header">
               <h5 class="mb-0"><i class="bi bi-database-fill-up"></i> Add Historical Balance</h5>
             </div>
             <div class="card-body">
               <form id="historicalForm">
-                <!-- Employee -->
-                <div class="mb-3">
-                  <label class="form-label">Employee <span class="text-danger">*</span></label>
-                  <select class="form-select" id="hist-employee" required>
-                    <option value="">Select Employee</option>
-                  </select>
-                  <div class="invalid-feedback">Please select an employee</div>
-                </div>
-
-                <!-- Month & Year and Date of Issuance -->
                 <div class="row">
-                  <div class="col-md-6 mb-3">
+                  <!-- Employee (searchable) -->
+                  <div class="col-md-4 mb-3">
+                    <label class="form-label">Employee <span class="text-danger">*</span></label>
+                    <div class="searchable-select-container">
+                      <div class="search-box">
+                        <i class="bi bi-search search-icon"></i>
+                        <input
+                          type="text"
+                          class="form-control"
+                          id="hist-employee-search"
+                          placeholder="Search employee..."
+                          autocomplete="off"
+                          oninput="filterHistoricalEmployees()"
+                          onfocus="showHistoricalEmployeeDropdown()"
+                        >
+                        <input type="hidden" id="hist-employee" required>
+                      </div>
+                      <div class="searchable-dropdown" id="hist-employee-dropdown" style="display: none;">
+                        <div class="dropdown-list" id="hist-employee-list"></div>
+                      </div>
+                    </div>
+                    <div class="invalid-feedback">Please select an employee</div>
+                  </div>
+
+                  <!-- Month & Year -->
+                  <div class="col-md-2 mb-3">
                     <label class="form-label">Month & Year <span class="text-danger">*</span></label>
-                    <input type="month" class="form-control" id="hist-month-year" required>
+                    <input type="month" class="form-control" id="hist-month-year" required onchange="enableDateOfIssuance()">
                     <div class="invalid-feedback">Required</div>
                   </div>
-                  <div class="col-md-6 mb-3">
+
+                  <!-- Date of Issuance -->
+                  <div class="col-md-2 mb-3">
                     <label class="form-label">Date of Issuance <span class="text-danger">*</span></label>
-                    <input type="date" class="form-control" id="hist-date-issuance" required>
+                    <input type="date" class="form-control" id="hist-date-issuance" disabled required>
                     <div class="invalid-feedback">Required</div>
                   </div>
-                </div>
 
-                <!-- COC Earned and Used -->
-                <div class="row">
-                  <div class="col-md-6 mb-3">
+                  <!-- COC Earned -->
+                  <div class="col-md-2 mb-3">
                     <label class="form-label">COC Earned (hrs) <span class="text-danger">*</span></label>
-                    <input type="number" class="form-control" id="hist-coc-earned" step="0.5" min="0" max="40" required onchange="calculateHistoricalRemaining()">
-                    <small class="text-muted">Max: 40 hrs/month</small>
-                    <div class="invalid-feedback">0.5 - 40 hours</div>
+                    <input type="number" class="form-control" id="hist-coc-earned" step="0.5" min="0" max="40" required oninput="validateHistoricalFields()">
+                    <small class="text-muted">Max: 40</small>
+                    <div class="invalid-feedback" id="hist-earned-feedback">0.5 - 40 hours</div>
                   </div>
-                  <div class="col-md-6 mb-3">
+
+                  <!-- COC Used -->
+                  <div class="col-md-2 mb-3">
                     <label class="form-label">COC Used (hrs)</label>
-                    <input type="number" class="form-control" id="hist-coc-used" step="0.5" min="0" value="0" onchange="calculateHistoricalRemaining()">
-                    <small class="text-muted">Must be ≤ Earned</small>
+                    <input type="number" class="form-control" id="hist-coc-used" step="4" min="0" value="0" oninput="validateHistoricalFields()">
+                    <small class="text-muted">4 or 8 hr blocks</small>
+                    <div class="invalid-feedback" id="hist-used-feedback">Must be in blocks of 4 or 8</div>
                   </div>
                 </div>
 
-                <!-- Auto-calculated Fields -->
-                <div class="alert alert-light border mb-3">
-                  <h6 class="mb-2"><i class="bi bi-calculator"></i> Auto-Calculated</h6>
-                  <div class="row">
-                    <div class="col-6 mb-2">
-                      <label class="form-label mb-1 small">Remaining</label>
-                      <input type="text" class="form-control form-control-sm" id="hist-remaining" readonly style="background-color: #f8fafc; font-weight: 600;">
+                <div class="row">
+                  <!-- Auto-calculated Fields -->
+                  <div class="col-md-8">
+                    <div class="alert alert-light border mb-0">
+                      <h6 class="mb-2"><i class="bi bi-calculator"></i> Auto-Calculated</h6>
+                      <div class="row">
+                        <div class="col-4">
+                          <label class="form-label mb-1 small">Remaining</label>
+                          <input type="text" class="form-control form-control-sm" id="hist-remaining" readonly style="background-color: #f8fafc; font-weight: 600;">
+                        </div>
+                        <div class="col-4">
+                          <label class="form-label mb-1 small">Valid Until</label>
+                          <input type="text" class="form-control form-control-sm" id="hist-valid-until" readonly style="background-color: #f8fafc; font-weight: 600;">
+                        </div>
+                        <div class="col-4">
+                          <label class="form-label mb-1 small">Status</label>
+                          <input type="text" class="form-control form-control-sm" id="hist-status" readonly style="background-color: #f8fafc; font-weight: 600;">
+                        </div>
+                      </div>
                     </div>
-                    <div class="col-6 mb-2">
-                      <label class="form-label mb-1 small">Status</label>
-                      <input type="text" class="form-control form-control-sm" id="hist-status" readonly style="background-color: #f8fafc; font-weight: 600;">
-                    </div>
-                    <div class="col-12">
-                      <label class="form-label mb-1 small">Valid Until</label>
-                      <input type="text" class="form-control form-control-sm" id="hist-valid-until" readonly style="background-color: #f8fafc; font-weight: 600;">
-                    </div>
+                  </div>
+
+                  <!-- Submit Button -->
+                  <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100" id="hist-submit-btn">
+                      <span class="btn-text"><i class="bi bi-upload"></i> Migrate Historical Balance</span>
+                      <span class="spinner-border spinner-border-sm d-none" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                      </span>
+                    </button>
                   </div>
                 </div>
 
                 <!-- Validation Rules Accordion -->
-                <div class="accordion mb-3" id="validationRulesAccordion">
+                <div class="accordion mt-3" id="validationRulesAccordion">
                   <div class="accordion-item">
                     <h2 class="accordion-header">
                       <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#validationRules">
-                        <i class="bi bi-shield-check me-2"></i> Validation Rules
+                        <i class="bi bi-shield-check me-2"></i> Validation Rules & CTO Availment Guidelines
                       </button>
                     </h2>
                     <div id="validationRules" class="accordion-collapse collapse" data-bs-parent="#validationRulesAccordion">
                       <div class="accordion-body">
-                        <ol class="mb-0 ps-3">
+                        <h6>Migration Validation Rules:</h6>
+                        <ol class="mb-3 ps-3">
                           <li class="mb-2"><strong>Monthly Cap:</strong> COC Earned ≤ 40 hours per month</li>
                           <li class="mb-2"><strong>Used vs Earned:</strong> COC Used must be ≤ COC Earned</li>
                           <li class="mb-2"><strong>Issuance Date:</strong> Must be between last day of earned month and last day of next month, same year</li>
                           <li class="mb-2"><strong>Total Balance Cap:</strong> Adding remaining hours cannot exceed employee's 120-hour total balance</li>
                           <li class="mb-0"><strong>No Duplicates:</strong> Cannot add duplicate for same employee + month + year</li>
                         </ol>
+                        <h6>CTO Availment (4/8 Hour Blocks):</h6>
+                        <ul class="mb-0 ps-3">
+                          <li class="mb-2"><strong>Block Requirement:</strong> CTO may be availed in blocks of 4 or 8 hours only</li>
+                          <li class="mb-2"><strong>Continuous Use:</strong> Up to maximum of 5 consecutive days per single availment</li>
+                          <li class="mb-0"><strong>Staggered Use:</strong> Can be used on staggered basis within the year</li>
+                        </ul>
                       </div>
                     </div>
                   </div>
                 </div>
-
-                <button type="submit" class="btn btn-primary w-100">
-                  <i class="bi bi-upload"></i> Migrate Historical Balance
-                </button>
               </form>
             </div>
           </div>
         </div>
+      </div>
 
-        <!-- Right Column: Historical Balances List -->
-        <div class="col-lg-7">
+      <!-- Historical Balances List -->
+      <div class="row">
+        <div class="col-12">
           <div class="card">
             <div class="card-header">
               <h5 class="mb-0"><i class="bi bi-list-ul"></i> Historical Balances</h5>
             </div>
             <div class="card-body">
-              <!-- Search Box -->
-              <div class="search-box mb-3">
-                <i class="bi bi-search search-icon"></i>
-                <input type="text" class="form-control" id="search-historical" placeholder="Search by employee name, month/year..." oninput="filterHistoricalBalances()">
-                <button class="clear-search" id="clear-historical-search" onclick="clearHistoricalSearch()">
-                  <i class="bi bi-x-circle-fill"></i>
-                </button>
-              </div>
-
-              <!-- Table -->
               <div class="table-responsive">
                 <table class="table table-hover table-sm">
                   <thead>
@@ -1570,8 +1596,8 @@
     }
 
     function populateEmployeeDropdowns() {
-      // Regular dropdowns (except ot-employee which is now searchable)
-      const dropdowns = ['cert-employee', 'ledger-employee', 'cto-employee', 'hist-employee'];
+      // Regular dropdowns (except ot-employee and hist-employee which are now searchable)
+      const dropdowns = ['cert-employee', 'ledger-employee', 'cto-employee'];
       dropdowns.forEach(id => {
         const select = document.getElementById(id);
         if (select) {
@@ -1584,8 +1610,9 @@
         }
       });
 
-      // Populate searchable dropdown for Log Overtime
+      // Populate searchable dropdowns
       populateOvertimeEmployeeDropdown();
+      populateHistoricalEmployeeDropdown();
     }
 
     function populateOvertimeEmployeeDropdown() {
@@ -1714,8 +1741,11 @@
               <td>${emp.office}</td>
               <td>${emp.position}</td>
               <td>
-                <button class="btn btn-sm btn-outline-primary" onclick="editEmployee('${emp.employeeId}')">
+                <button class="btn btn-sm btn-outline-primary me-1" onclick="editEmployee('${emp.employeeId}')">
                   <i class="bi bi-pencil"></i> Edit
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteEmployee('${emp.employeeId}')">
+                  <i class="bi bi-trash"></i> Delete
                 </button>
               </td>
             </tr>
@@ -1723,6 +1753,31 @@
         }
       });
     }
+
+    window.deleteEmployee = async function(employeeId) {
+      Modal.confirm(
+        'Delete Employee',
+        'Are you sure you want to delete this employee? This action cannot be undone.',
+        async function() {
+          try {
+            const result = await new Promise((resolve, reject) => {
+              google.script.run
+                .withSuccessHandler(resolve)
+                .withFailureHandler(reject)
+                .deleteEmployee_SERVER(employeeId);
+            });
+
+            if (result.success) {
+              Modal.success('Success!', 'Employee deleted successfully!');
+            } else {
+              Modal.error('Error', result.error);
+            }
+          } catch (error) {
+            Modal.error('Error', 'Error deleting employee: ' + error);
+          }
+        }
+      );
+    };
 
     window.filterEmployees = function(type) {
       const searchInput = document.getElementById(`search-${type}-employees`);
@@ -1752,6 +1807,155 @@
       // Only render the specific tab being cleared
       renderEmployeesTable(type);
     };
+
+    // Historical Balance Employee Dropdown Functions
+    function populateHistoricalEmployeeDropdown() {
+      const dropdown = document.getElementById('hist-employee-list');
+      if (!dropdown) return;
+
+      const activeEmployees = employeesData.filter(emp => emp.isActive);
+
+      if (activeEmployees.length === 0) {
+        dropdown.innerHTML = '<div class="dropdown-no-results">No active employees found</div>';
+        return;
+      }
+
+      dropdown.innerHTML = activeEmployees.map(emp => `
+        <div class="dropdown-item-custom" onclick="selectHistoricalEmployee('${emp.employeeId}', '${emp.lastName}, ${emp.firstName}')">
+          <span class="employee-name">${emp.lastName}, ${emp.firstName}</span>
+          <span class="employee-details">${emp.employeeId} • ${emp.office} • ${emp.position}</span>
+        </div>
+      `).join('');
+    }
+
+    window.filterHistoricalEmployees = function() {
+      const searchInput = document.getElementById('hist-employee-search');
+      const dropdown = document.getElementById('hist-employee-list');
+      const searchTerm = searchInput.value.toLowerCase().trim();
+
+      const activeEmployees = employeesData.filter(emp => emp.isActive);
+      let filteredEmployees = activeEmployees;
+
+      if (searchTerm) {
+        filteredEmployees = activeEmployees.filter(emp => {
+          const fullName = `${emp.firstName} ${emp.lastName}`.toLowerCase();
+          const reverseName = `${emp.lastName} ${emp.firstName}`.toLowerCase();
+          const employeeId = emp.employeeId.toLowerCase();
+          return fullName.includes(searchTerm) ||
+                 reverseName.includes(searchTerm) ||
+                 employeeId.includes(searchTerm);
+        });
+      }
+
+      if (filteredEmployees.length === 0) {
+        dropdown.innerHTML = '<div class="dropdown-no-results">No employees found</div>';
+      } else {
+        dropdown.innerHTML = filteredEmployees.map(emp => `
+          <div class="dropdown-item-custom" onclick="selectHistoricalEmployee('${emp.employeeId}', '${emp.lastName}, ${emp.firstName}')">
+            <span class="employee-name">${emp.lastName}, ${emp.firstName}</span>
+            <span class="employee-details">${emp.employeeId} • ${emp.office} • ${emp.position}</span>
+          </div>
+        `).join('');
+      }
+
+      showHistoricalEmployeeDropdown();
+    };
+
+    window.showHistoricalEmployeeDropdown = function() {
+      const dropdown = document.getElementById('hist-employee-dropdown');
+      if (dropdown) dropdown.style.display = 'block';
+    };
+
+    window.hideHistoricalEmployeeDropdown = function() {
+      const dropdown = document.getElementById('hist-employee-dropdown');
+      if (dropdown) dropdown.style.display = 'none';
+    };
+
+    window.selectHistoricalEmployee = function(employeeId, name) {
+      const searchInput = document.getElementById('hist-employee-search');
+      const hiddenInput = document.getElementById('hist-employee');
+
+      searchInput.value = `${name} (${employeeId})`;
+      hiddenInput.value = employeeId;
+
+      hideHistoricalEmployeeDropdown();
+    };
+
+    // Enable Date of Issuance when Month & Year is selected
+    window.enableDateOfIssuance = function() {
+      const monthYear = document.getElementById('hist-month-year').value;
+      const dateIssuance = document.getElementById('hist-date-issuance');
+
+      if (monthYear) {
+        dateIssuance.disabled = false;
+
+        // Set min and max dates based on the selected month
+        const [year, month] = monthYear.split('-');
+        const earnedMonth = new Date(year, month - 1, 1);
+
+        // Last day of earned month
+        const lastDayOfMonth = new Date(year, month, 0);
+        const minDate = lastDayOfMonth.toISOString().split('T')[0];
+
+        // Last day of next month
+        const nextMonth = new Date(year, month, 0);
+        const maxDate = nextMonth.toISOString().split('T')[0];
+
+        dateIssuance.min = minDate;
+        dateIssuance.max = maxDate;
+      } else {
+        dateIssuance.disabled = true;
+        dateIssuance.value = '';
+      }
+
+      validateHistoricalFields();
+    };
+
+    // Live validation for Historical Balance fields
+    window.validateHistoricalFields = function() {
+      const earnedInput = document.getElementById('hist-coc-earned');
+      const usedInput = document.getElementById('hist-coc-used');
+      const earnedValue = parseFloat(earnedInput.value) || 0;
+      const usedValue = parseFloat(usedInput.value) || 0;
+
+      // Validate COC Earned (max 40)
+      if (earnedValue > 40) {
+        earnedInput.classList.add('is-invalid');
+        document.getElementById('hist-earned-feedback').textContent = 'Cannot exceed 40 hours per month';
+      } else if (earnedValue < 0) {
+        earnedInput.classList.add('is-invalid');
+        document.getElementById('hist-earned-feedback').textContent = 'Must be a positive number';
+      } else {
+        earnedInput.classList.remove('is-invalid');
+      }
+
+      // Validate COC Used (must be in blocks of 4 or 8, and <= earned)
+      if (usedValue > earnedValue) {
+        usedInput.classList.add('is-invalid');
+        document.getElementById('hist-used-feedback').textContent = 'Cannot exceed COC Earned';
+      } else if (usedValue > 0 && usedValue % 4 !== 0) {
+        usedInput.classList.add('is-invalid');
+        document.getElementById('hist-used-feedback').textContent = 'Must be in blocks of 4 hours (4, 8, 12, 16, etc.)';
+      } else if (usedValue < 0) {
+        usedInput.classList.add('is-invalid');
+        document.getElementById('hist-used-feedback').textContent = 'Must be a positive number';
+      } else {
+        usedInput.classList.remove('is-invalid');
+      }
+
+      // Update auto-calculated fields
+      calculateHistoricalRemaining();
+    };
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(event) {
+      const histContainer = document.querySelector('#hist-employee-dropdown')?.parentElement;
+      const histDropdown = document.getElementById('hist-employee-dropdown');
+
+      if (histContainer && histDropdown && !histContainer.contains(event.target)) {
+        hideHistoricalEmployeeDropdown();
+      }
+    });
 
     async function loadDashboard() {
       const batchesQ = query(collection(db, 'creditBatches'), where('status', '==', 'Active'));
@@ -2120,7 +2324,6 @@
 
     // Historical Balances List Management
     let historicalBalancesData = [];
-    let historicalSearchTerm = '';
 
     function loadHistoricalBalances() {
       const q = query(
@@ -2148,33 +2351,33 @@
 
     function renderHistoricalBalancesTable() {
       const tbody = document.getElementById('historicalBalancesTableBody');
-      let filteredData = historicalBalancesData;
 
-      // Apply search filter
-      if (historicalSearchTerm) {
-        const searchLower = historicalSearchTerm.toLowerCase();
-        filteredData = historicalBalancesData.filter(batch => {
-          const employee = employeesData.find(emp => emp.employeeId === batch.employeeId);
-          const employeeName = employee ? `${employee.firstName} ${employee.lastName}`.toLowerCase() : '';
-          const monthYear = batch.monthYear ? batch.monthYear.toLowerCase() : '';
-
-          return employeeName.includes(searchLower) || monthYear.includes(searchLower);
-        });
-      }
-
-      if (filteredData.length === 0) {
-        const message = historicalSearchTerm ? 'No historical balances match your search' : 'No historical balances found';
-        tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">${message}</td></tr>`;
+      if (historicalBalancesData.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">No historical balances migrated yet</td></tr>`;
         return;
       }
 
-      tbody.innerHTML = filteredData.map(batch => {
+      tbody.innerHTML = historicalBalancesData.map(batch => {
         const employee = employeesData.find(emp => emp.employeeId === batch.employeeId);
         const employeeName = employee ? `${employee.lastName}, ${employee.firstName}` : batch.employeeId;
 
-        // Format dates
-        const issuedDate = batch.dateOfIssuance ? new Date(batch.dateOfIssuance).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '-';
-        const validUntilDate = batch.expiryDate ? new Date(batch.expiryDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '-';
+        // Convert Firestore Timestamps to JavaScript Dates
+        const convertDate = (dateField) => {
+          if (!dateField) return '-';
+          // Handle Firestore Timestamp
+          if (dateField.toDate) return dateField.toDate();
+          // Handle string dates
+          if (typeof dateField === 'string') return new Date(dateField);
+          // Already a Date object
+          if (dateField instanceof Date) return dateField;
+          return new Date(dateField);
+        };
+
+        const issuanceDate = convertDate(batch.dateOfIssuance);
+        const expiryDate = convertDate(batch.expiryDate);
+
+        const issuedDate = issuanceDate !== '-' ? issuanceDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '-';
+        const validUntilDate = expiryDate !== '-' ? expiryDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '-';
 
         // Format month/year
         const monthYear = batch.monthYear || '-';
@@ -2208,33 +2411,6 @@
         `;
       }).join('');
     }
-
-    window.filterHistoricalBalances = function() {
-      const searchInput = document.getElementById('search-historical');
-      const clearBtn = document.getElementById('clear-historical-search');
-
-      historicalSearchTerm = searchInput.value;
-
-      // Show/hide clear button
-      if (searchInput.value) {
-        clearBtn.classList.add('visible');
-      } else {
-        clearBtn.classList.remove('visible');
-      }
-
-      renderHistoricalBalancesTable();
-    };
-
-    window.clearHistoricalSearch = function() {
-      const searchInput = document.getElementById('search-historical');
-      const clearBtn = document.getElementById('clear-historical-search');
-
-      searchInput.value = '';
-      historicalSearchTerm = '';
-      clearBtn.classList.remove('visible');
-
-      renderHistoricalBalancesTable();
-    };
 
     window.deleteHistoricalBalance = async function(batchId) {
       Modal.confirm(
@@ -2362,22 +2538,32 @@
 
     document.getElementById('historicalForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      
+
       const form = e.target;
+      const submitBtn = document.getElementById('hist-submit-btn');
+      const btnText = submitBtn.querySelector('.btn-text');
+      const spinner = submitBtn.querySelector('.spinner-border');
+
       form.classList.add('was-validated');
-      
+
       if (!form.checkValidity()) {
         return;
       }
-      
+
       const cocEarned = parseFloat(document.getElementById('hist-coc-earned').value);
       const cocUsed = parseFloat(document.getElementById('hist-coc-used').value) || 0;
-      
+
+      // Additional validation
       if (cocUsed > cocEarned) {
         Modal.error('Validation Error', 'COC Used cannot exceed COC Earned');
         return;
       }
-      
+
+      if (cocUsed > 0 && cocUsed % 4 !== 0) {
+        Modal.error('Validation Error', 'COC Used must be in blocks of 4 hours (4, 8, 12, 16, etc.)');
+        return;
+      }
+
       const data = {
         employeeId: document.getElementById('hist-employee').value,
         monthYear: document.getElementById('hist-month-year').value,
@@ -2385,6 +2571,11 @@
         cocUsed: cocUsed,
         dateOfIssuance: document.getElementById('hist-date-issuance').value
       };
+
+      // Show spinner
+      submitBtn.disabled = true;
+      btnText.classList.add('d-none');
+      spinner.classList.remove('d-none');
 
       try {
         const result = await new Promise((resolve, reject) => {
@@ -2399,12 +2590,25 @@
           Modal.success('Historical Balance Migrated!', message);
           form.reset();
           form.classList.remove('was-validated');
+
+          // Clear searchable employee input
+          document.getElementById('hist-employee-search').value = '';
+          document.getElementById('hist-employee').value = '';
+
+          // Disable Date of Issuance again
+          document.getElementById('hist-date-issuance').disabled = true;
+
           calculateHistoricalRemaining();
         } else {
           Modal.error('Migration Error', result.error);
         }
       } catch (error) {
         Modal.error('Error', 'Error migrating balance: ' + error);
+      } finally {
+        // Hide spinner
+        submitBtn.disabled = false;
+        btnText.classList.remove('d-none');
+        spinner.classList.add('d-none');
       }
     });
 
