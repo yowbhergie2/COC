@@ -666,67 +666,149 @@
 
     <div id="page-log-overtime" class="page-view">
       <h2 class="page-title">Log Overtime</h2>
-      <div class="card">
+
+      <!-- Employee/Month/Year Selection -->
+      <div class="card mb-3">
         <div class="card-body">
-          <form id="overtimeForm">
-            <div class="row">
-              <div class="col-md-6 mb-3">
-                <label class="form-label">Employee</label>
-                <div class="searchable-select-container">
-                  <div class="search-box">
-                    <i class="bi bi-search search-icon"></i>
-                    <input
-                      type="text"
-                      class="form-control"
-                      id="ot-employee-search"
-                      placeholder="Search employee by name or ID..."
-                      autocomplete="off"
-                      oninput="filterOvertimeEmployees()"
-                      onfocus="showOvertimeEmployeeDropdown()"
-                    >
-                    <input type="hidden" id="ot-employee" required>
-                  </div>
-                  <div class="searchable-dropdown" id="ot-employee-dropdown" style="display: none;">
-                    <div class="dropdown-list" id="ot-employee-list"></div>
-                  </div>
+          <div class="row">
+            <div class="col-md-4 mb-3">
+              <label class="form-label"><strong>Employee</strong> <span class="text-danger">*</span></label>
+              <div class="searchable-select-container">
+                <div class="search-box">
+                  <i class="bi bi-search search-icon"></i>
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="ot-employee-search"
+                    placeholder="Search employee by name or ID..."
+                    autocomplete="off"
+                    oninput="filterOvertimeEmployees()"
+                    onfocus="showOvertimeEmployeeDropdown()"
+                  >
+                  <input type="hidden" id="ot-employee">
+                </div>
+                <div class="searchable-dropdown" id="ot-employee-dropdown" style="display: none;">
+                  <div class="dropdown-list" id="ot-employee-list"></div>
                 </div>
               </div>
-              <div class="col-md-6 mb-3">
-                <label class="form-label">Overtime Date</label>
-                <input type="date" class="form-control" id="ot-date" required>
-              </div>
             </div>
-            <div class="row">
-              <div class="col-md-4 mb-3">
-                <label class="form-label">Hours Worked</label>
-                <input type="number" class="form-control" id="ot-hours" step="0.5" min="0.5" max="24" required>
-              </div>
-              <div class="col-md-4 mb-3">
-                <label class="form-label">Day Type</label>
-                <select class="form-select" id="ot-daytype" required>
-                  <option value="Regular">Regular Day (1.25x)</option>
-                  <option value="RestDay">Rest Day (1.30x)</option>
-                  <option value="Holiday">Holiday (2.00x)</option>
-                </select>
-              </div>
-              <div class="col-md-4 mb-3">
-                <label class="form-label">Overtime Type</label>
-                <select class="form-select" id="ot-type" required>
-                  <option value="PreShift">Pre-Shift</option>
-                  <option value="PostShift">Post-Shift</option>
-                  <option value="WholeDay">Whole Day</option>
-                </select>
-              </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label"><strong>Month</strong> <span class="text-danger">*</span></label>
+              <select class="form-select" id="ot-month" onchange="updateOvertimeContext()">
+                <option value="">Select Month</option>
+                <option value="0">January</option>
+                <option value="1">February</option>
+                <option value="2">March</option>
+                <option value="3">April</option>
+                <option value="4">May</option>
+                <option value="5">June</option>
+                <option value="6">July</option>
+                <option value="7">August</option>
+                <option value="8">September</option>
+                <option value="9">October</option>
+                <option value="10">November</option>
+                <option value="11">December</option>
+              </select>
             </div>
-            <div class="mb-3">
-              <label class="form-label">Remarks</label>
-              <textarea class="form-control" id="ot-remarks" rows="2"></textarea>
+            <div class="col-md-4 mb-3">
+              <label class="form-label"><strong>Year</strong> <span class="text-danger">*</span></label>
+              <select class="form-select" id="ot-year" onchange="updateOvertimeContext()"></select>
             </div>
-            <button type="submit" class="btn btn-primary">
-              <i class="bi bi-save"></i> Log Overtime
-            </button>
-          </form>
+          </div>
         </div>
+      </div>
+
+      <!-- Progress Indicators -->
+      <div class="row mb-3" id="ot-progress-section" style="display:none;">
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-body">
+              <h6 class="text-muted mb-2"><i class="bi bi-calendar-month"></i> Monthly Accrual</h6>
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="h4 mb-0" id="ot-monthly-hours">0.0</span>
+                <span class="text-muted">/ 40.0 hours</span>
+              </div>
+              <div class="progress" style="height: 8px;">
+                <div class="progress-bar" id="ot-monthly-progress" role="progressbar" style="width: 0%"></div>
+              </div>
+              <small class="text-muted mt-1 d-block">Cap: 40 hours per month</small>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-body">
+              <h6 class="text-muted mb-2"><i class="bi bi-hourglass-split"></i> Total Balance</h6>
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="h4 mb-0" id="ot-total-hours">0.0</span>
+                <span class="text-muted">/ 120.0 hours</span>
+              </div>
+              <div class="progress" style="height: 8px;">
+                <div class="progress-bar" id="ot-total-progress" role="progressbar" style="width: 0%"></div>
+              </div>
+              <small class="text-muted mt-1 d-block">Active + Uncertified credits</small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Warning/Error Alerts -->
+      <div id="ot-alert-container"></div>
+
+      <!-- Entry Grid -->
+      <div class="card mb-3" id="ot-entry-section" style="display:none;">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5 class="mb-0">Overtime Entries</h5>
+          <button type="button" class="btn btn-sm btn-primary" onclick="addOvertimeDay()">
+            <i class="bi bi-plus-circle"></i> Add Day
+          </button>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-bordered">
+              <thead class="table-light">
+                <tr>
+                  <th style="width: 120px;">Date <span class="text-danger">*</span></th>
+                  <th style="width: 120px;">Type</th>
+                  <th>AM In</th>
+                  <th>AM Out</th>
+                  <th>PM In</th>
+                  <th>PM Out</th>
+                  <th style="width: 100px;">Hours Worked</th>
+                  <th style="width: 100px;">COC Earned</th>
+                  <th style="width: 60px;">Action</th>
+                </tr>
+              </thead>
+              <tbody id="ot-entries-tbody">
+                <!-- Dynamic rows will be added here -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Grand Total -->
+      <div class="card mb-3" id="ot-total-section" style="display:none;">
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6">
+              <h5 class="mb-0">Grand Total Hours Worked: <span class="text-primary" id="ot-grand-hours-worked">0.0</span> hours</h5>
+            </div>
+            <div class="col-md-6 text-end">
+              <h5 class="mb-0">💎 Grand Total COC Earned: <span class="text-success" id="ot-grand-coc-earned">0.0</span> hours</h5>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Submit Button -->
+      <div id="ot-submit-section" style="display:none;">
+        <button type="button" class="btn btn-lg btn-success" onclick="submitOvertimeForm()">
+          <span class="btn-text"><i class="bi bi-save"></i> Log Overtime</span>
+          <span class="spinner-border spinner-border-sm d-none" role="status" id="ot-submit-spinner">
+            <span class="visually-hidden">Loading...</span>
+          </span>
+        </button>
       </div>
     </div>
 
@@ -2890,38 +2972,613 @@
       }
     };
 
-    document.getElementById('overtimeForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      
-      const data = {
-        employeeId: document.getElementById('ot-employee').value,
-        overtimeDate: document.getElementById('ot-date').value,
-        hoursWorked: document.getElementById('ot-hours').value,
-        dayType: document.getElementById('ot-daytype').value,
-        overtimeType: document.getElementById('ot-type').value,
-        remarks: document.getElementById('ot-remarks').value
-      };
+    // ========== LOG OVERTIME FEATURE ==========
+
+    // Global state for overtime entries
+    let overtimeEntries = [];
+    let overtimeRowCounter = 0;
+    let overtimeMonthlyTotal = 0;
+    let overtimeTotalBalance = 0;
+
+    // Initialize year dropdown (current year and previous 2 years)
+    (function initializeOvertimeYearDropdown() {
+      const yearSelect = document.getElementById('ot-year');
+      const currentYear = new Date().getFullYear();
+      for (let i = 0; i < 3; i++) {
+        const year = currentYear - i;
+        const option = document.createElement('option');
+        option.value = year;
+        option.textContent = year;
+        if (i === 0) option.selected = true;
+        yearSelect.appendChild(option);
+      }
+    })();
+
+    // Filter overtime employees
+    window.filterOvertimeEmployees = function() {
+      const searchInput = document.getElementById('ot-employee-search');
+      const dropdown = document.getElementById('ot-employee-list');
+      const searchTerm = searchInput.value.toLowerCase().trim();
+
+      const activeEmployees = employeesData.filter(emp => emp.isActive);
+      let filteredEmployees = activeEmployees;
+
+      if (searchTerm) {
+        filteredEmployees = activeEmployees.filter(emp => {
+          const fullName = `${emp.firstName} ${emp.lastName}`.toLowerCase();
+          const reverseName = `${emp.lastName} ${emp.firstName}`.toLowerCase();
+          const employeeId = emp.employeeId.toLowerCase();
+          return fullName.includes(searchTerm) ||
+                 reverseName.includes(searchTerm) ||
+                 employeeId.includes(searchTerm);
+        });
+      }
+
+      if (filteredEmployees.length === 0) {
+        dropdown.innerHTML = '<div class="dropdown-item-custom text-muted">No employees found</div>';
+      } else {
+        dropdown.innerHTML = filteredEmployees.map(emp => `
+          <div class="dropdown-item-custom" onclick="selectOvertimeEmployee('${emp.employeeId}', '${emp.lastName}, ${emp.firstName}')">
+            <span class="employee-name">${emp.lastName}, ${emp.firstName}</span>
+            <span class="employee-details">${emp.employeeId} • ${emp.office} • ${emp.position}</span>
+          </div>
+        `).join('');
+      }
+
+      showOvertimeEmployeeDropdown();
+    };
+
+    window.showOvertimeEmployeeDropdown = function() {
+      const dropdown = document.getElementById('ot-employee-dropdown');
+      if (dropdown) dropdown.style.display = 'block';
+    };
+
+    window.hideOvertimeEmployeeDropdown = function() {
+      const dropdown = document.getElementById('ot-employee-dropdown');
+      if (dropdown) dropdown.style.display = 'none';
+    };
+
+    window.selectOvertimeEmployee = function(employeeId, name) {
+      const searchInput = document.getElementById('ot-employee-search');
+      const hiddenInput = document.getElementById('ot-employee');
+
+      searchInput.value = `${name} (${employeeId})`;
+      hiddenInput.value = employeeId;
+
+      hideOvertimeEmployeeDropdown();
+      updateOvertimeContext();
+    };
+
+    // Update overtime context (when employee/month/year changes)
+    window.updateOvertimeContext = async function() {
+      const employeeId = document.getElementById('ot-employee').value;
+      const month = document.getElementById('ot-month').value;
+      const year = document.getElementById('ot-year').value;
+
+      const alertContainer = document.getElementById('ot-alert-container');
+      alertContainer.innerHTML = '';
+
+      if (!employeeId || month === '' || !year) {
+        // Hide all sections if incomplete
+        document.getElementById('ot-progress-section').style.display = 'none';
+        document.getElementById('ot-entry-section').style.display = 'none';
+        document.getElementById('ot-total-section').style.display = 'none';
+        document.getElementById('ot-submit-section').style.display = 'none';
+        return;
+      }
+
+      // Show progress section
+      document.getElementById('ot-progress-section').style.display = 'flex';
+
+      try {
+        // Check for certificate or historical balance blocking
+        const blockCheck = await new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(reject)
+            .checkOvertimeBlocks_SERVER(employeeId, parseInt(month), parseInt(year));
+        });
+
+        if (!blockCheck.success) {
+          alertContainer.innerHTML = `
+            <div class="alert alert-danger">
+              <i class="bi bi-exclamation-triangle-fill"></i>
+              <strong>Blocked:</strong> ${blockCheck.error}
+            </div>
+          `;
+          document.getElementById('ot-entry-section').style.display = 'none';
+          document.getElementById('ot-total-section').style.display = 'none';
+          document.getElementById('ot-submit-section').style.display = 'none';
+          return;
+        }
+
+        // Load existing uncertified logs for this month
+        const existingLogs = await new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(reject)
+            .getUncertifiedOvertimeForMonth_SERVER(employeeId, parseInt(month), parseInt(year));
+        });
+
+        // Calculate monthly total
+        overtimeMonthlyTotal = existingLogs.reduce((sum, log) => sum + log.earnedHours, 0);
+
+        // Get total balance (Active + Uncertified)
+        const balanceData = await new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(reject)
+            .getTotalBalance_SERVER(employeeId);
+        });
+
+        overtimeTotalBalance = balanceData.total;
+
+        // Update progress bars
+        updateOvertimeProgress();
+
+        // Show entry section
+        document.getElementById('ot-entry-section').style.display = 'block';
+        document.getElementById('ot-total-section').style.display = 'block';
+        document.getElementById('ot-submit-section').style.display = 'block';
+
+        // Clear existing entries
+        overtimeEntries = [];
+        document.getElementById('ot-entries-tbody').innerHTML = '';
+        calculateOvertimeGrandTotal();
+
+      } catch (error) {
+        console.error('Error updating overtime context:', error);
+        Modal.error('Error', 'Failed to load overtime context: ' + error);
+      }
+    };
+
+    // Update progress bars
+    function updateOvertimeProgress() {
+      // Monthly accrual (current + entries)
+      const entriesTotal = overtimeEntries.reduce((sum, entry) => sum + (entry.cocEarned || 0), 0);
+      const monthlyTotal = overtimeMonthlyTotal + entriesTotal;
+      const monthlyPercent = Math.min((monthlyTotal / 40) * 100, 100);
+
+      document.getElementById('ot-monthly-hours').textContent = monthlyTotal.toFixed(1);
+      const monthlyBar = document.getElementById('ot-monthly-progress');
+      monthlyBar.style.width = monthlyPercent + '%';
+      monthlyBar.className = monthlyPercent >= 100 ? 'progress-bar bg-danger' :
+                             monthlyPercent >= 80 ? 'progress-bar bg-warning' :
+                             'progress-bar bg-success';
+
+      // Total balance
+      const totalBalance = overtimeTotalBalance + entriesTotal;
+      const totalPercent = Math.min((totalBalance / 120) * 100, 100);
+
+      document.getElementById('ot-total-hours').textContent = totalBalance.toFixed(1);
+      const totalBar = document.getElementById('ot-total-progress');
+      totalBar.style.width = totalPercent + '%';
+      totalBar.className = totalPercent >= 100 ? 'progress-bar bg-danger' :
+                           totalPercent >= 80 ? 'progress-bar bg-warning' :
+                           'progress-bar bg-success';
+    }
+
+    // Add overtime day row
+    window.addOvertimeDay = function() {
+      const rowId = ++overtimeRowCounter;
+      const tbody = document.getElementById('ot-entries-tbody');
+
+      const row = document.createElement('tr');
+      row.id = `ot-row-${rowId}`;
+      row.innerHTML = `
+        <td>
+          <input type="date" class="form-control form-control-sm" id="ot-date-${rowId}"
+                 onchange="onOvertimeDateChange(${rowId})" required>
+        </td>
+        <td>
+          <span class="badge bg-secondary" id="ot-daytype-${rowId}">-</span>
+        </td>
+        <td>
+          <input type="time" class="form-control form-control-sm" id="ot-am-in-${rowId}"
+                 onchange="calculateOvertimeRow(${rowId})">
+        </td>
+        <td>
+          <input type="time" class="form-control form-control-sm" id="ot-am-out-${rowId}"
+                 onchange="calculateOvertimeRow(${rowId})">
+        </td>
+        <td>
+          <input type="time" class="form-control form-control-sm" id="ot-pm-in-${rowId}"
+                 onchange="calculateOvertimeRow(${rowId})">
+        </td>
+        <td>
+          <input type="time" class="form-control form-control-sm" id="ot-pm-out-${rowId}"
+                 onchange="calculateOvertimeRow(${rowId})">
+        </td>
+        <td>
+          <input type="text" class="form-control form-control-sm" id="ot-hours-worked-${rowId}"
+                 readonly style="background-color: #f8f9fa;">
+        </td>
+        <td>
+          <input type="text" class="form-control form-control-sm" id="ot-coc-earned-${rowId}"
+                 readonly style="background-color: #f8f9fa;">
+        </td>
+        <td>
+          <button type="button" class="btn btn-sm btn-danger" onclick="removeOvertimeDay(${rowId})" title="Remove">
+            <i class="bi bi-trash"></i>
+          </button>
+        </td>
+      `;
+
+      tbody.appendChild(row);
+
+      // Add to entries array
+      overtimeEntries.push({
+        rowId: rowId,
+        date: null,
+        dayType: null,
+        amIn: null,
+        amOut: null,
+        pmIn: null,
+        pmOut: null,
+        hoursWorked: 0,
+        cocEarned: 0
+      });
+    };
+
+    // Remove overtime day row
+    window.removeOvertimeDay = function(rowId) {
+      const row = document.getElementById(`ot-row-${rowId}`);
+      if (row) row.remove();
+
+      // Remove from entries array
+      overtimeEntries = overtimeEntries.filter(entry => entry.rowId !== rowId);
+
+      calculateOvertimeGrandTotal();
+      updateOvertimeProgress();
+    };
+
+    // On date change - auto-detect day type
+    window.onOvertimeDateChange = async function(rowId) {
+      const dateInput = document.getElementById(`ot-date-${rowId}`);
+      const dateValue = dateInput.value;
+
+      if (!dateValue) return;
+
+      const selectedDate = new Date(dateValue);
+      const selectedMonth = parseInt(document.getElementById('ot-month').value);
+      const selectedYear = parseInt(document.getElementById('ot-year').value);
+
+      // Validate date is in selected month/year
+      if (selectedDate.getMonth() !== selectedMonth || selectedDate.getFullYear() !== selectedYear) {
+        Modal.error('Invalid Date', 'Date must be within the selected month and year.');
+        dateInput.value = '';
+        return;
+      }
+
+      // Validate no future dates
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (selectedDate > today) {
+        Modal.error('Invalid Date', 'Future dates are not allowed.');
+        dateInput.value = '';
+        return;
+      }
+
+      // Check for duplicates
+      const duplicateCount = overtimeEntries.filter(entry =>
+        entry.date === dateValue && entry.rowId !== rowId
+      ).length;
+
+      if (duplicateCount > 0) {
+        Modal.error('Duplicate Date', 'This date has already been entered.');
+        dateInput.value = '';
+        return;
+      }
+
+      // Auto-detect day type
+      try {
+        const dayTypeResult = await new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(reject)
+            .getDayType_SERVER(dateValue);
+        });
+
+        const badge = document.getElementById(`ot-daytype-${rowId}`);
+        if (dayTypeResult.isHoliday) {
+          badge.textContent = `Holiday (${dayTypeResult.holidayName})`;
+          badge.className = 'badge bg-danger';
+        } else if (dayTypeResult.isWeekend) {
+          badge.textContent = 'Weekend';
+          badge.className = 'badge bg-warning text-dark';
+        } else {
+          badge.textContent = 'Weekday';
+          badge.className = 'badge bg-primary';
+        }
+
+        // Update entry
+        const entry = overtimeEntries.find(e => e.rowId === rowId);
+        if (entry) {
+          entry.date = dateValue;
+          entry.dayType = dayTypeResult.isHoliday || dayTypeResult.isWeekend ? 'weekend' : 'weekday';
+          entry.isHoliday = dayTypeResult.isHoliday;
+          entry.holidayName = dayTypeResult.holidayName;
+        }
+
+      } catch (error) {
+        console.error('Error detecting day type:', error);
+      }
+    };
+
+    // Calculate overtime for a single row
+    window.calculateOvertimeRow = function(rowId) {
+      const entry = overtimeEntries.find(e => e.rowId === rowId);
+      if (!entry || !entry.date) return;
+
+      const amIn = document.getElementById(`ot-am-in-${rowId}`).value;
+      const amOut = document.getElementById(`ot-am-out-${rowId}`).value;
+      const pmIn = document.getElementById(`ot-pm-in-${rowId}`).value;
+      const pmOut = document.getElementById(`ot-pm-out-${rowId}`).value;
+
+      // Update entry
+      entry.amIn = amIn;
+      entry.amOut = amOut;
+      entry.pmIn = pmIn;
+      entry.pmOut = pmOut;
+
+      // Validate time inputs
+      let isValid = true;
+      let errorMsg = '';
+
+      // AM validation
+      if (amIn && amOut) {
+        const amInTime = parseTime(amIn);
+        const amOutTime = parseTime(amOut);
+
+        if (amInTime >= parseTime('13:00')) {
+          errorMsg = 'AM In must be before 1:00 PM';
+          isValid = false;
+        } else if (amOutTime < parseTime('08:00') || amOutTime >= parseTime('13:00')) {
+          errorMsg = 'AM Out must be between 8:00 AM and 12:59 PM';
+          isValid = false;
+        } else if (amOutTime <= amInTime) {
+          errorMsg = 'AM Out must be after AM In';
+          isValid = false;
+        }
+      } else if (amIn || amOut) {
+        errorMsg = 'Both AM In and AM Out must be filled';
+        isValid = false;
+      }
+
+      // PM validation
+      if (pmIn && pmOut) {
+        const pmInTime = parseTime(pmIn);
+        const pmOutTime = parseTime(pmOut);
+
+        if (pmInTime < parseTime('12:00')) {
+          errorMsg = 'PM In must be 12:00 PM or later';
+          isValid = false;
+        } else if (pmOutTime < parseTime('12:00')) {
+          errorMsg = 'PM Out must be 12:00 PM or later';
+          isValid = false;
+        } else if (pmOutTime <= pmInTime) {
+          errorMsg = 'PM Out must be after PM In';
+          isValid = false;
+        }
+      } else if (pmIn || pmOut) {
+        errorMsg = 'Both PM In and PM Out must be filled';
+        isValid = false;
+      }
+
+      // Noon break validation
+      if (amOut && pmIn) {
+        if (parseTime(pmIn) <= parseTime(amOut)) {
+          errorMsg = 'PM In must be after AM Out (noon break required)';
+          isValid = false;
+        }
+      }
+
+      if (!isValid) {
+        entry.hoursWorked = 0;
+        entry.cocEarned = 0;
+        entry.error = errorMsg;
+      } else {
+        entry.error = null;
+
+        // Calculate hours worked and COC earned
+        const result = calculateOvertimeHours(entry.dayType, amIn, amOut, pmIn, pmOut);
+        entry.hoursWorked = result.hoursWorked;
+        entry.cocEarned = result.cocEarned;
+      }
+
+      // Update display
+      document.getElementById(`ot-hours-worked-${rowId}`).value = entry.hoursWorked.toFixed(1);
+      document.getElementById(`ot-coc-earned-${rowId}`).value = entry.cocEarned.toFixed(1);
+
+      calculateOvertimeGrandTotal();
+      updateOvertimeProgress();
+    };
+
+    // Helper: Parse time string to minutes
+    function parseTime(timeStr) {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      return hours * 60 + minutes;
+    }
+
+    // Helper: Calculate overlap between two time ranges
+    function calculateOverlap(start1, end1, start2, end2) {
+      const overlapStart = Math.max(start1, start2);
+      const overlapEnd = Math.min(end1, end2);
+      return Math.max(0, overlapEnd - overlapStart);
+    }
+
+    // Calculate overtime hours based on time windows
+    function calculateOvertimeHours(dayType, amIn, amOut, pmIn, pmOut) {
+      let hoursWorked = 0;
+      let cocEarned = 0;
+
+      if (dayType === 'weekday') {
+        // Weekday: Only PM window 5:00 PM - 7:00 PM (17:00-19:00), rate 1.0x, max 2 hours
+        if (pmIn && pmOut) {
+          const pmInTime = parseTime(pmIn);
+          const pmOutTime = parseTime(pmOut);
+          const windowStart = parseTime('17:00');
+          const windowEnd = parseTime('19:00');
+
+          const overlap = calculateOverlap(pmInTime, pmOutTime, windowStart, windowEnd);
+          const hours = Math.min(overlap / 60, 2.0); // Max 2 hours
+          hoursWorked += hours;
+          cocEarned += hours * 1.0; // 1.0x rate
+        }
+      } else {
+        // Weekend/Holiday: AM window 8:00 AM - 12:00 PM, PM window 1:00 PM - 5:00 PM (13:00-17:00), rate 1.5x
+
+        // AM window
+        if (amIn && amOut) {
+          const amInTime = parseTime(amIn);
+          const amOutTime = parseTime(amOut);
+          const windowStart = parseTime('08:00');
+          const windowEnd = parseTime('12:00');
+
+          const overlap = calculateOverlap(amInTime, amOutTime, windowStart, windowEnd);
+          const hours = overlap / 60;
+          hoursWorked += hours;
+          cocEarned += hours * 1.5; // 1.5x rate
+        }
+
+        // PM window
+        if (pmIn && pmOut) {
+          const pmInTime = parseTime(pmIn);
+          const pmOutTime = parseTime(pmOut);
+          const windowStart = parseTime('13:00');
+          const windowEnd = parseTime('17:00');
+
+          const overlap = calculateOverlap(pmInTime, pmOutTime, windowStart, windowEnd);
+          const hours = overlap / 60;
+          hoursWorked += hours;
+          cocEarned += hours * 1.5; // 1.5x rate
+        }
+      }
+
+      return { hoursWorked, cocEarned };
+    }
+
+    // Calculate grand total
+    function calculateOvertimeGrandTotal() {
+      const totalHoursWorked = overtimeEntries.reduce((sum, entry) => sum + entry.hoursWorked, 0);
+      const totalCocEarned = overtimeEntries.reduce((sum, entry) => sum + entry.cocEarned, 0);
+
+      document.getElementById('ot-grand-hours-worked').textContent = totalHoursWorked.toFixed(1);
+      document.getElementById('ot-grand-coc-earned').textContent = totalCocEarned.toFixed(1);
+    }
+
+    // Submit overtime form
+    window.submitOvertimeForm = async function() {
+      const employeeId = document.getElementById('ot-employee').value;
+      const month = parseInt(document.getElementById('ot-month').value);
+      const year = parseInt(document.getElementById('ot-year').value);
+
+      // Validation
+      if (!employeeId || month === '' || !year) {
+        Modal.error('Validation Error', 'Please select employee, month, and year.');
+        return;
+      }
+
+      if (overtimeEntries.length === 0) {
+        Modal.error('Validation Error', 'Please add at least one overtime entry.');
+        return;
+      }
+
+      // Validate all entries have required data
+      for (const entry of overtimeEntries) {
+        if (!entry.date) {
+          Modal.error('Validation Error', 'All entries must have a date.');
+          return;
+        }
+        if (!entry.amIn && !entry.amOut && !entry.pmIn && !entry.pmOut) {
+          Modal.error('Validation Error', `Entry for ${entry.date} has no time inputs.`);
+          return;
+        }
+        if (entry.error) {
+          Modal.error('Validation Error', `Entry for ${entry.date}: ${entry.error}`);
+          return;
+        }
+      }
+
+      // Check monthly cap
+      const totalCocEarned = overtimeEntries.reduce((sum, entry) => sum + entry.cocEarned, 0);
+      const newMonthlyTotal = overtimeMonthlyTotal + totalCocEarned;
+
+      if (newMonthlyTotal > 40) {
+        Modal.error('Monthly Cap Exceeded',
+          `Total would be ${newMonthlyTotal.toFixed(1)} hours, exceeding the 40-hour monthly accrual cap.`);
+        return;
+      }
+
+      // Check total balance cap
+      const newTotalBalance = overtimeTotalBalance + totalCocEarned;
+      if (newTotalBalance > 120) {
+        Modal.error('Total Balance Cap Exceeded',
+          `Total balance would be ${newTotalBalance.toFixed(1)} hours, exceeding the 120-hour cap.`);
+        return;
+      }
+
+      // Show spinner
+      const spinner = document.getElementById('ot-submit-spinner');
+      spinner.classList.remove('d-none');
 
       try {
         const result = await new Promise((resolve, reject) => {
           google.script.run
             .withSuccessHandler(resolve)
             .withFailureHandler(reject)
-            .logOvertime_SERVER(data);
+            .logOvertimeBatch_SERVER({
+              employeeId: employeeId,
+              month: month,
+              year: year,
+              entries: overtimeEntries.map(entry => ({
+                date: entry.date,
+                dayType: entry.dayType,
+                isHoliday: entry.isHoliday,
+                holidayName: entry.holidayName,
+                amIn: entry.amIn,
+                amOut: entry.amOut,
+                pmIn: entry.pmIn,
+                pmOut: entry.pmOut,
+                hoursWorked: entry.hoursWorked,
+                cocEarned: entry.cocEarned
+              }))
+            });
         });
 
         if (result.success) {
-          const message = `Log ID: ${result.logId}\nEarned Hours: ${result.earnedHours.toFixed(2)}`;
-          Modal.success('Overtime Logged!', message);
-          e.target.reset();
-          // Clear searchable employee input
-          document.getElementById('ot-employee-search').value = '';
-          document.getElementById('ot-employee').value = '';
+          const message = `
+            <div style="text-align: center;">
+              <h4 class="text-success mb-3">${result.count} overtime log(s) created</h4>
+              <div class="mb-3">
+                <h5 class="text-primary mb-0">${result.totalCocEarned.toFixed(1)} hours</h5>
+                <small class="text-muted">Total COC Earned (Uncertified)</small>
+              </div>
+              <p class="text-muted mb-0">Generate a certificate to activate these credits.</p>
+            </div>
+          `;
+          Modal.success('Overtime Logged Successfully!', message);
+
+          // Reset form
+          overtimeEntries = [];
+          document.getElementById('ot-entries-tbody').innerHTML = '';
+          calculateOvertimeGrandTotal();
+          updateOvertimeContext();
         } else {
           Modal.error('Error', result.error);
         }
       } catch (error) {
-        Modal.error('Error', 'Error logging overtime: ' + error);
+        Modal.error('Error', 'Failed to log overtime: ' + error);
+      } finally {
+        spinner.classList.add('d-none');
+      }
+    };
+
+    // Click outside to close dropdown
+    document.addEventListener('click', function(e) {
+      const otContainer = document.querySelector('#ot-employee-search')?.closest('.searchable-select-container');
+      if (otContainer && !otContainer.contains(e.target)) {
+        hideOvertimeEmployeeDropdown();
       }
     });
 

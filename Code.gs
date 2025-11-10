@@ -129,93 +129,265 @@ function getFirestore() {
 // SERVER-SIDE FUNCTIONS
 // ============================
 
-function logOvertime_SERVER(data) {
+// ========== LOG OVERTIME FEATURE SERVER FUNCTIONS ==========
+
+// Check if overtime can be logged (no certificate or historical balance for that month)
+function checkOvertimeBlocks_SERVER(employeeId, month, year) {
   try {
     const db = getFirestore();
-    
-    const configDoc = db.getDocument('configuration/accrualRules');
-    const config = configDoc.obj;
-    
-    const multiplierMap = {
-      'Regular': config.regularDayMultiplier || 1.25,
-      'RestDay': config.restDayMultiplier || 1.30,
-      'Holiday': config.holidayMultiplier || 2.00
-    };
-    
-    const multiplier = multiplierMap[data.dayType] || 1.25;
-    const earnedHours = parseFloat(data.hoursWorked) * multiplier;
-    
-    const overtimeDate = new Date(data.overtimeDate);
-    const month = overtimeDate.getMonth();
-    const year = overtimeDate.getFullYear();
-    
+
+    // Check for existing certificate for this month/year
     const monthStart = new Date(year, month, 1);
     const monthEnd = new Date(year, month + 1, 0);
-    
-    const monthLogsQuery = db.query('overtimeLogs')
-      .where('employeeId', '==', data.employeeId)
+
+    const certificatesQuery = db.query('certificates')
+      .where('employeeId', '==', employeeId)
+      .where('monthYear', '==', `${year}-${String(month + 1).padStart(2, '0')}`)
+      .execute();
+
+    if (certificatesQuery.length > 0) {
+      return {
+        success: false,
+        error: 'A certificate already exists for this month. Cannot log overtime.'
+      };
+    }
+
+    // Check for historical balance for this month/year
+    const historicalQuery = db.query('creditBatches')
+      .where('employeeId', '==', employeeId)
+      .where('source', '==', 'Historical')
+      .where('monthYear', '==', `${year}-${String(month + 1).padStart(2, '0')}`)
+      .execute();
+
+    if (historicalQuery.length > 0) {
+      return {
+        success: false,
+        error: 'Historical balance exists for this month. Cannot log overtime.'
+      };
+    }
+
+    return { success: true };
+
+  } catch (error) {
+    return {
+      success: false,
+      error: error.toString()
+    };
+  }
+}
+
+// Get uncertified overtime logs for a specific month
+function getUncertifiedOvertimeForMonth_SERVER(employeeId, month, year) {
+  try {
+    const db = getFirestore();
+
+    const monthStart = new Date(year, month, 1);
+    const monthEnd = new Date(year, month + 1, 0);
+
+    const logsQuery = db.query('overtimeLogs')
+      .where('employeeId', '==', employeeId)
       .where('overtimeDate', '>=', monthStart.toISOString())
       .where('overtimeDate', '<=', monthEnd.toISOString())
       .where('status', '==', 'Uncertified')
       .execute();
-    
-    let monthTotal = earnedHours;
-    monthLogsQuery.forEach(doc => {
-      monthTotal += doc.obj.earnedHours;
-    });
-    
-    const monthlyAccrualCap = config.monthlyAccrualCap || 40;
-    if (monthTotal > monthlyAccrualCap) {
-      return {
-        success: false,
-        error: `Monthly accrual cap exceeded. Current month total: ${monthTotal.toFixed(2)} hours. Cap: ${monthlyAccrualCap} hours.`
-      };
-    }
-    
-    const batchesQuery = db.query('creditBatches')
-      .where('employeeId', '==', data.employeeId)
+
+    const logs = logsQuery.map(doc => doc.obj);
+
+    return logs;
+
+  } catch (error) {
+    Logger.log('Error getting uncertified overtime: ' + error.toString());
+    return [];
+  }
+}
+
+// Get total balance (Active + Uncertified)
+function getTotalBalance_SERVER(employeeId) {
+  try {
+    const db = getFirestore();
+
+    // Get Active credits
+    const activeBatchesQuery = db.query('creditBatches')
+      .where('employeeId', '==', employeeId)
       .where('status', '==', 'Active')
       .execute();
-    
-    let currentBalance = 0;
-    batchesQuery.forEach(doc => {
-      currentBalance += doc.obj.remainingHours;
+
+    let activeBalance = 0;
+    activeBatchesQuery.forEach(doc => {
+      activeBalance += doc.obj.remainingHours || 0;
     });
-    
-    const totalBalanceCap = config.totalBalanceCap || 120;
-    if (currentBalance + earnedHours > totalBalanceCap) {
-      return {
-        success: false,
-        error: `Total balance cap exceeded. Current balance: ${currentBalance.toFixed(2)} hours. Cap: ${totalBalanceCap} hours.`
-      };
-    }
-    
-    const logId = 'LOG_' + Utilities.getUuid();
-    
-    const logData = {
-      logId: logId,
-      employeeId: data.employeeId,
-      overtimeDate: data.overtimeDate,
-      hoursWorked: parseFloat(data.hoursWorked),
-      dayType: data.dayType,
-      multiplier: multiplier,
-      earnedHours: earnedHours,
-      overtimeType: data.overtimeType,
-      status: 'Uncertified',
-      remarks: data.remarks || '',
-      createdAt: new Date().toISOString(),
-      createdBy: Session.getActiveUser().getEmail()
-    };
-    
-    db.createDocument('overtimeLogs/' + logId, logData);
-    
+
+    // Get Uncertified logs
+    const uncertifiedLogsQuery = db.query('overtimeLogs')
+      .where('employeeId', '==', employeeId)
+      .where('status', '==', 'Uncertified')
+      .execute();
+
+    let uncertifiedBalance = 0;
+    uncertifiedLogsQuery.forEach(doc => {
+      uncertifiedBalance += doc.obj.earnedHours || 0;
+    });
+
     return {
       success: true,
-      logId: logId,
-      earnedHours: earnedHours
+      active: activeBalance,
+      uncertified: uncertifiedBalance,
+      total: activeBalance + uncertifiedBalance
     };
-    
+
   } catch (error) {
+    return {
+      success: false,
+      total: 0,
+      error: error.toString()
+    };
+  }
+}
+
+// Auto-detect day type (weekday/weekend/holiday)
+function getDayType_SERVER(dateStr) {
+  try {
+    const db = getFirestore();
+    const date = new Date(dateStr);
+    const dayOfWeek = date.getDay(); // 0 = Sunday, 6 = Saturday
+
+    // Check if weekend
+    const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+
+    // Check if holiday
+    let isHoliday = false;
+    let holidayName = '';
+
+    const holidaysQuery = db.query('holidays')
+      .where('date', '==', dateStr)
+      .execute();
+
+    if (holidaysQuery.length > 0) {
+      isHoliday = true;
+      holidayName = holidaysQuery[0].obj.name || 'Holiday';
+    }
+
+    return {
+      success: true,
+      isWeekend: isWeekend,
+      isHoliday: isHoliday,
+      holidayName: holidayName
+    };
+
+  } catch (error) {
+    return {
+      success: false,
+      isWeekend: false,
+      isHoliday: false,
+      error: error.toString()
+    };
+  }
+}
+
+// Log overtime batch
+function logOvertimeBatch_SERVER(data) {
+  try {
+    const db = getFirestore();
+
+    // Validate required data
+    if (!data.employeeId || data.month === undefined || !data.year || !data.entries || data.entries.length === 0) {
+      return {
+        success: false,
+        error: 'Missing required data'
+      };
+    }
+
+    // Check monthly cap
+    const existingLogs = getUncertifiedOvertimeForMonth_SERVER(data.employeeId, data.month, data.year);
+    const existingMonthTotal = existingLogs.reduce((sum, log) => sum + log.earnedHours, 0);
+    const newEntriesTotal = data.entries.reduce((sum, entry) => sum + entry.cocEarned, 0);
+    const totalMonthly = existingMonthTotal + newEntriesTotal;
+
+    if (totalMonthly > 40) {
+      return {
+        success: false,
+        error: `Monthly accrual cap exceeded. Total would be ${totalMonthly.toFixed(1)} hours (cap: 40 hours)`
+      };
+    }
+
+    // Check total balance cap
+    const balanceData = getTotalBalance_SERVER(data.employeeId);
+    const newTotalBalance = balanceData.total + newEntriesTotal;
+
+    if (newTotalBalance > 120) {
+      return {
+        success: false,
+        error: `Total balance cap exceeded. Total would be ${newTotalBalance.toFixed(1)} hours (cap: 120 hours)`
+      };
+    }
+
+    // Check for duplicate dates (server-side)
+    const dateSet = new Set();
+    for (const entry of data.entries) {
+      if (dateSet.has(entry.date)) {
+        return {
+          success: false,
+          error: `Duplicate date found: ${entry.date}`
+        };
+      }
+      dateSet.add(entry.date);
+
+      // Check if date already exists in database
+      const existingDateQuery = db.query('overtimeLogs')
+        .where('employeeId', '==', data.employeeId)
+        .where('overtimeDate', '==', new Date(entry.date).toISOString())
+        .execute();
+
+      if (existingDateQuery.length > 0) {
+        return {
+          success: false,
+          error: `Overtime already logged for ${entry.date}`
+        };
+      }
+    }
+
+    // Create overtime logs
+    let createdCount = 0;
+    let totalCocEarned = 0;
+
+    for (const entry of data.entries) {
+      const logId = 'LOG_' + Utilities.getUuid();
+      const overtimeDate = new Date(entry.date);
+
+      const logData = {
+        logId: logId,
+        employeeId: data.employeeId,
+        overtimeDate: overtimeDate.toISOString(),
+        dayType: entry.dayType,
+        isHoliday: entry.isHoliday || false,
+        holidayName: entry.holidayName || '',
+        amIn: entry.amIn || null,
+        amOut: entry.amOut || null,
+        pmIn: entry.pmIn || null,
+        pmOut: entry.pmOut || null,
+        hoursWorked: entry.hoursWorked,
+        earnedHours: entry.cocEarned,
+        status: 'Uncertified',
+        month: data.month,
+        year: data.year,
+        createdAt: new Date().toISOString(),
+        createdBy: Session.getActiveUser().getEmail()
+      };
+
+      db.createDocument('overtimeLogs/' + logId, logData);
+
+      createdCount++;
+      totalCocEarned += entry.cocEarned;
+    }
+
+    return {
+      success: true,
+      count: createdCount,
+      totalCocEarned: totalCocEarned
+    };
+
+  } catch (error) {
+    Logger.log('Error logging overtime batch: ' + error.toString());
     return {
       success: false,
       error: error.toString()
