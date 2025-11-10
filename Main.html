@@ -1903,16 +1903,26 @@
         const lastDayOfNextMonth = new Date(earnedYear, earnedMonth + 1, 0);
 
         let maxDate;
-        // Check if next month is in a different year
+        let defaultDate;
+
+        // Check if next month is in a different year (December edge case)
         if (lastDayOfNextMonth.getFullYear() > earnedYear) {
           // Cap it to Dec 31 of the earned year (for December edge case)
           maxDate = new Date(earnedYear, 12, 0).toISOString().split('T')[0];
+          // Default to Dec 31 for December
+          defaultDate = maxDate;
         } else {
           maxDate = lastDayOfNextMonth.toISOString().split('T')[0];
+          // Default to 1st day of the month AFTER the earned month
+          const firstDayOfNextMonth = new Date(earnedYear, earnedMonth, 1);
+          defaultDate = firstDayOfNextMonth.toISOString().split('T')[0];
         }
 
         dateIssuance.min = minDate;
         dateIssuance.max = maxDate;
+
+        // Set default value to the month AFTER the earned month
+        dateIssuance.value = defaultDate;
       } else {
         dateIssuance.disabled = true;
         dateIssuance.value = '';
