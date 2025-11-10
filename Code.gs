@@ -927,6 +927,16 @@ function updateHistoricalBalance_SERVER(data) {
     const earnedMonth = month;
     const earnedYear = year;
 
+    // Get existing document to preserve ALL fields
+    const existingDoc = db.getDocument('creditBatches/' + batchId);
+    if (!existingDoc) {
+      return {
+        success: false,
+        error: 'Historical balance not found'
+      };
+    }
+    const existing = existingDoc.obj;
+
     // Same validations as create
     if (cocEarned > 40) {
       return {
@@ -950,7 +960,8 @@ function updateHistoricalBalance_SERVER(data) {
 
     const status = remainingHours > 0 ? 'Active' : 'Used';
 
-    const updateData = {
+    // Merge: Start with ALL existing fields, then override only what we're updating
+    const updateData = Object.assign({}, existing, {
       initialHours: cocEarned,
       earnedHours: cocEarned,
       usedHours: cocUsed,
@@ -964,7 +975,7 @@ function updateHistoricalBalance_SERVER(data) {
       earnedYear: earnedYear,
       updatedAt: new Date().toISOString(),
       updatedBy: Session.getActiveUser().getEmail()
-    };
+    });
 
     db.updateDocument('creditBatches/' + batchId, updateData);
 

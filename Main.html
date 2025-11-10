@@ -1161,6 +1161,9 @@
                         <span class="visually-hidden">Loading...</span>
                       </span>
                     </button>
+                    <button type="button" class="btn btn-outline-danger d-none" id="hist-cancel-btn" onclick="cancelEditHistoricalBalance()" title="Cancel Edit">
+                      <i class="bi bi-x-lg"></i> Cancel
+                    </button>
                     <button type="button" class="btn btn-outline-secondary" onclick="resetHistoricalForm()" title="Reset Form">
                       <i class="bi bi-arrow-counterclockwise"></i>
                     </button>
@@ -2749,14 +2752,21 @@
 
       validateHistoricalFields();
 
-      // Update button text
+      // Update button text and show Cancel button
       document.getElementById('hist-submit-text').textContent = 'Update';
+      document.getElementById('hist-cancel-btn').classList.remove('d-none');
 
       // Switch to Add tab
       document.getElementById('tab-add-hist').click();
 
       // Scroll to form
       document.getElementById('content-add-hist').scrollIntoView({ behavior: 'smooth' });
+    };
+
+    window.cancelEditHistoricalBalance = function() {
+      resetHistoricalForm();
+      // Switch to list tab
+      document.getElementById('tab-list-hist').click();
     };
 
     window.resetHistoricalForm = function() {
@@ -2786,8 +2796,9 @@
       // Reset calculated fields
       calculateHistoricalRemaining();
 
-      // Reset button text
+      // Reset button text and hide Cancel button
       document.getElementById('hist-submit-text').textContent = 'Migrate';
+      document.getElementById('hist-cancel-btn').classList.add('d-none');
     };
 
     window.generateCertificate = async function() {
