@@ -913,6 +913,121 @@ function saveConfiguration_SERVER(data) {
   }
 }
 
+function updateHistoricalBalance_SERVER(data) {
+  try {
+    const db = getFirestore();
+
+    const cocEarned = parseFloat(data.cocEarned);
+    const cocUsed = parseFloat(data.cocUsed) || 0;
+    const monthYear = data.monthYear;
+    const dateOfIssuance = new Date(data.dateOfIssuance);
+    const batchId = data.batchId;
+
+    const [year, month] = monthYear.split('-').map(Number);
+    const earnedMonth = month;
+    const earnedYear = year;
+
+    // Same validations as create
+    if (cocEarned > 40) {
+      return {
+        success: false,
+        error: 'COC Earned cannot exceed 40 hours per month (Monthly Accrual Cap)'
+      };
+    }
+
+    if (cocUsed > cocEarned) {
+      return {
+        success: false,
+        error: 'COC Used cannot exceed COC Earned'
+      };
+    }
+
+    const remainingHours = cocEarned - cocUsed;
+
+    const expiryDate = new Date(dateOfIssuance);
+    expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+    expiryDate.setDate(expiryDate.getDate() - 1);
+
+    const status = remainingHours > 0 ? 'Active' : 'Used';
+
+    const updateData = {
+      initialHours: cocEarned,
+      earnedHours: cocEarned,
+      usedHours: cocUsed,
+      remainingHours: remainingHours,
+      monthYear: monthYear,
+      dateOfIssuance: dateOfIssuance.toISOString(),
+      issueDate: dateOfIssuance.toISOString(),
+      expiryDate: expiryDate.toISOString(),
+      status: status,
+      earnedMonth: earnedMonth,
+      earnedYear: earnedYear,
+      updatedAt: new Date().toISOString(),
+      updatedBy: Session.getActiveUser().getEmail()
+    };
+
+    db.updateDocument('creditBatches/' + batchId, updateData);
+
+    return {
+      success: true,
+      batchId: batchId,
+      cocEarned: cocEarned,
+      cocUsed: cocUsed,
+      remainingHours: remainingHours,
+      validUntil: expiryDate.toLocaleDateString('en-US', {timeZone: 'Asia/Manila'}),
+      status: status
+    };
+
+  } catch (error) {
+    Logger.log('Historical balance update error: ' + error.toString());
+    return {
+      success: false,
+      error: error.toString()
+    };
+  }
+}
+
+function deleteHistoricalBalance_SERVER(batchId) {
+  try {
+    const db = getFirestore();
+    db.deleteDocument('creditBatches/' + batchId);
+
+    return {
+      success: true
+    };
+
+  } catch (error) {
+    return {
+      success: false,
+      error: error.toString()
+    };
+  }
+}
+
+function checkEmployeeHasOvertimeLogs_SERVER(employeeId) {
+  try {
+    const db = getFirestore();
+
+    const logsQuery = db.query('overtimeLogs')
+      .where('employeeId', '==', employeeId)
+      .execute();
+
+    const hasLogs = logsQuery.length > 0;
+
+    return {
+      success: true,
+      hasLogs: hasLogs
+    };
+
+  } catch (error) {
+    return {
+      success: false,
+      hasLogs: false,
+      error: error.toString()
+    };
+  }
+}
+
 function dailyForfeitureTask() {
   try {
     const db = getFirestore();
