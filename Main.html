@@ -1090,6 +1090,8 @@
               </div>
               <div class="card-body">
                 <form id="historicalForm">
+                  <input type="hidden" id="hist-batch-id">
+                  <input type="hidden" id="hist-is-edit" value="false">
                   <div class="row">
                     <!-- Employee (read-only, pre-filled) -->
                     <div class="col-md-4 mb-3">
@@ -1151,13 +1153,16 @@
                     </div>
                   </div>
 
-                  <!-- Submit Button -->
-                  <div class="col-md-4 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary w-100" id="hist-submit-btn">
-                      <span class="btn-text"><i class="bi bi-upload"></i> Migrate Historical Balance</span>
+                  <!-- Action Buttons -->
+                  <div class="col-md-4 d-flex align-items-end gap-2">
+                    <button type="submit" class="btn btn-primary flex-grow-1" id="hist-submit-btn">
+                      <span class="btn-text"><i class="bi bi-upload"></i> <span id="hist-submit-text">Migrate</span></span>
                       <span class="spinner-border spinner-border-sm d-none" role="status">
                         <span class="visually-hidden">Loading...</span>
                       </span>
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="resetHistoricalForm()" title="Reset Form">
+                      <i class="bi bi-arrow-counterclockwise"></i>
                     </button>
                   </div>
                 </div>
@@ -1226,6 +1231,22 @@
         </div>
 
       </div>
+      </div>
+
+      <!-- Employees Without Historical Balance -->
+      <div class="row mt-4">
+        <div class="col-12">
+          <div class="card">
+            <div class="card-header">
+              <h5 class="mb-0"><i class="bi bi-exclamation-triangle-fill text-warning"></i> Employees Without Historical Balance</h5>
+            </div>
+            <div class="card-body">
+              <div id="employees-no-hist-list" class="d-flex flex-wrap gap-2">
+                <span class="text-muted">Loading...</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -1642,6 +1663,7 @@
       populateOvertimeEmployeeDropdown();
       populateHistoricalEmployeeDropdown();
       populateHistoricalEmployeeFilterDropdown();
+      renderEmployeesWithoutHistoricalBalance();
     }
 
     function populateOvertimeEmployeeDropdown() {
@@ -1920,7 +1942,98 @@
 
       // Load historical balances for this employee
       loadHistoricalBalances();
+
+      // Check if employee has overtime logs and disable historical balance actions
+      checkEmployeeHasOvertimeLogs(employeeId);
     };
+
+    async function checkEmployeeHasOvertimeLogs(employeeId) {
+      try {
+        const result = await new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(reject)
+            .checkEmployeeHasOvertimeLogs_SERVER(employeeId);
+        });
+
+        if (result.hasLogs) {
+          // Disable form fields
+          document.getElementById('hist-month-year').disabled = true;
+          document.getElementById('hist-date-issuance').disabled = true;
+          document.getElementById('hist-coc-earned').disabled = true;
+          document.getElementById('hist-coc-used').disabled = true;
+          document.getElementById('hist-submit-btn').disabled = true;
+
+          // Show warning message
+          const warningHTML = `
+            <div class="alert alert-warning">
+              <i class="bi bi-exclamation-triangle-fill"></i>
+              <strong>Historical Balance Locked:</strong> This employee has already logged overtime.
+              Historical balance cannot be added or modified to prevent data inconsistency.
+            </div>
+          `;
+          const formCard = document.querySelector('#content-add-hist .card-body');
+          if (formCard && !formCard.querySelector('.alert-warning')) {
+            formCard.insertAdjacentHTML('afterbegin', warningHTML);
+          }
+        } else {
+          // Enable form fields
+          document.getElementById('hist-month-year').disabled = false;
+          document.getElementById('hist-coc-earned').disabled = false;
+          document.getElementById('hist-coc-used').disabled = false;
+          document.getElementById('hist-submit-btn').disabled = false;
+
+          // Remove warning if exists
+          const warning = document.querySelector('#content-add-hist .alert-warning');
+          if (warning) warning.remove();
+        }
+
+        // Return the result for use in rendering table
+        return result.hasLogs;
+      } catch (error) {
+        console.error('Error checking overtime logs:', error);
+        return false;
+      }
+    }
+
+    function renderEmployeesWithoutHistoricalBalance() {
+      const container = document.getElementById('employees-no-hist-list');
+      if (!container) return;
+
+      // Get all active employees
+      const activeEmployees = employeesData.filter(emp => emp.isActive);
+
+      // Get employees with historical balance (from Firestore)
+      const db = getFirestore();
+      const q = query(
+        collection(db, 'creditBatches'),
+        where('source', '==', 'Historical')
+      );
+
+      onSnapshot(q, (snapshot) => {
+        const employeesWithHist = new Set();
+        snapshot.forEach(doc => {
+          const batch = doc.data();
+          employeesWithHist.add(batch.employeeId);
+        });
+
+        const employeesWithoutHist = activeEmployees.filter(emp =>
+          !employeesWithHist.has(emp.employeeId)
+        );
+
+        if (employeesWithoutHist.length === 0) {
+          container.innerHTML = '<span class="text-success"><i class="bi bi-check-circle-fill"></i> All active employees have historical balance migrated!</span>';
+        } else {
+          container.innerHTML = employeesWithoutHist.map(emp => `
+            <span class="badge bg-warning text-dark" style="cursor: pointer;"
+                  onclick="selectHistoricalEmployeeFilter('${emp.employeeId}', '${emp.lastName}, ${emp.firstName}')"
+                  title="Click to add historical balance for this employee">
+              ${emp.lastName}, ${emp.firstName} (${emp.employeeId})
+            </span>
+          `).join('');
+        }
+      });
+    }
 
     // Click outside to close dropdown
     document.addEventListener('click', function(e) {
@@ -2569,7 +2682,10 @@
             <td>${validUntilDate}</td>
             <td>${statusBadge}</td>
             <td>
-              <button class="btn btn-sm btn-outline-danger" onclick="deleteHistoricalBalance('${batch.id}')" title="Delete">
+              <button class="btn btn-sm btn-outline-primary me-1" onclick="editHistoricalBalance('${batch.id}')" title="Edit" id="hist-edit-${batch.id}">
+                <i class="bi bi-pencil"></i>
+              </button>
+              <button class="btn btn-sm btn-outline-danger" onclick="deleteHistoricalBalance('${batch.id}')" title="Delete" id="hist-delete-${batch.id}">
                 <i class="bi bi-trash"></i>
               </button>
             </td>
@@ -2601,6 +2717,77 @@
           }
         }
       );
+    };
+
+    window.editHistoricalBalance = function(batchId) {
+      const batch = historicalBalancesData.find(b => b.id === batchId);
+      if (!batch) {
+        Modal.error('Error', 'Historical balance not found');
+        return;
+      }
+
+      // Populate form with batch data
+      document.getElementById('hist-batch-id').value = batchId;
+      document.getElementById('hist-is-edit').value = 'true';
+      document.getElementById('hist-month-year').value = batch.monthYear;
+      document.getElementById('hist-coc-earned').value = batch.initialHours || batch.earnedHours;
+      document.getElementById('hist-coc-used').value = batch.usedHours || 0;
+
+      // Enable and set Date of Issuance
+      enableDateOfIssuance();
+      const issuanceDate = batch.dateOfIssuance || batch.issueDate;
+      if (issuanceDate) {
+        const date = new Date(issuanceDate);
+        const formatDate = (d) => {
+          const year = d.getFullYear();
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        };
+        document.getElementById('hist-date-issuance').value = formatDate(date);
+      }
+
+      validateHistoricalFields();
+
+      // Update button text
+      document.getElementById('hist-submit-text').textContent = 'Update';
+
+      // Switch to Add tab
+      document.getElementById('tab-add-hist').click();
+
+      // Scroll to form
+      document.getElementById('content-add-hist').scrollIntoView({ behavior: 'smooth' });
+    };
+
+    window.resetHistoricalForm = function() {
+      const form = document.getElementById('historicalForm');
+      const employeeName = document.getElementById('hist-employee-name').value;
+      const employeeId = document.getElementById('hist-employee').value;
+
+      form.reset();
+      form.classList.remove('was-validated');
+
+      // Clear hidden fields
+      document.getElementById('hist-batch-id').value = '';
+      document.getElementById('hist-is-edit').value = 'false';
+
+      // Restore employee info
+      document.getElementById('hist-employee-name').value = employeeName;
+      document.getElementById('hist-employee').value = employeeId;
+
+      // Reset date field
+      document.getElementById('hist-date-issuance').disabled = true;
+      document.getElementById('hist-date-issuance').value = '';
+
+      // Reset validation
+      document.getElementById('hist-coc-earned').classList.remove('is-invalid');
+      document.getElementById('hist-coc-used').classList.remove('is-invalid');
+
+      // Reset calculated fields
+      calculateHistoricalRemaining();
+
+      // Reset button text
+      document.getElementById('hist-submit-text').textContent = 'Migrate';
     };
 
     window.generateCertificate = async function() {
@@ -2730,6 +2917,9 @@
         return;
       }
 
+      const isEdit = document.getElementById('hist-is-edit').value === 'true';
+      const batchId = document.getElementById('hist-batch-id').value;
+
       const data = {
         employeeId: document.getElementById('hist-employee').value,
         monthYear: document.getElementById('hist-month-year').value,
@@ -2738,17 +2928,22 @@
         dateOfIssuance: document.getElementById('hist-date-issuance').value
       };
 
+      if (isEdit) {
+        data.batchId = batchId;
+      }
+
       // Show spinner
       submitBtn.disabled = true;
       btnText.classList.add('d-none');
       spinner.classList.remove('d-none');
 
       try {
+        const serverFunction = isEdit ? 'updateHistoricalBalance_SERVER' : 'migrateHistoricalBalance_SERVER';
         const result = await new Promise((resolve, reject) => {
           google.script.run
             .withSuccessHandler(resolve)
             .withFailureHandler(reject)
-            .migrateHistoricalBalance_SERVER(data);
+            [serverFunction](data);
         });
 
         if (result.success) {
@@ -2770,23 +2965,10 @@
               </div>
             </div>
           `;
-          Modal.success('Historical Balance Migrated!', message);
+          Modal.success(isEdit ? 'Historical Balance Updated!' : 'Historical Balance Migrated!', message);
 
-          // Store employee info before reset
-          const employeeName = document.getElementById('hist-employee-name').value;
-          const employeeId = document.getElementById('hist-employee').value;
-
-          form.reset();
-          form.classList.remove('was-validated');
-
-          // Restore employee info (since it's pre-filled from the filter)
-          document.getElementById('hist-employee-name').value = employeeName;
-          document.getElementById('hist-employee').value = employeeId;
-
-          // Disable Date of Issuance again
-          document.getElementById('hist-date-issuance').disabled = true;
-
-          calculateHistoricalRemaining();
+          // Reset form using reset function
+          resetHistoricalForm();
 
           // The list will auto-update via onSnapshot listener
         } else {
