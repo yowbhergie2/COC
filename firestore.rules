@@ -1,0 +1,76 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user is authorized staff
+    function isStaff() {
+      return isAuthenticated() && 
+             (request.auth.uid == 'firestore-admin@comptime-tracker-97857.iam.gserviceaccount.com' ||
+              request.auth.token.email == 'ad.dpwhro2@gmail.com' ||
+              request.auth.token.email == 'dpwh.hrms@gmail.com');
+    }
+    
+    // Helper function for service account (backend operations)
+    function isServiceAccount() {
+      return request.auth.uid == 'firestore-admin@comptime-tracker-97857.iam.gserviceaccount.com';
+    }
+    
+    // Configuration - Read by authenticated users, Write by service account only
+    match /configuration/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isServiceAccount();
+    }
+    
+    // Employees - Read by authenticated users, Write by service account only
+    match /employees/{employeeId} {
+      allow read: if isAuthenticated();
+      allow write: if isServiceAccount();
+    }
+    
+    // Overtime Logs - Read by authenticated users, Write by service account only
+    match /overtimeLogs/{logId} {
+      allow read: if isAuthenticated();
+      allow write: if isServiceAccount();
+    }
+    
+    // Certificates - Read by authenticated users, Write by service account only
+    match /certificates/{certificateId} {
+      allow read: if isAuthenticated();
+      allow write: if isServiceAccount();
+    }
+    
+    // Credit Batches - Read by authenticated users, Write by service account only
+    match /creditBatches/{batchId} {
+      allow read: if isAuthenticated();
+      allow write: if isServiceAccount();
+    }
+    
+    // Ledger - Read by authenticated users, Write by service account only
+    match /ledger/{ledgerId} {
+      allow read: if isAuthenticated();
+      allow write: if isServiceAccount();
+    }
+    
+    // Holidays - Read by authenticated users, Write by service account only
+    match /holidays/{holidayId} {
+      allow read: if isAuthenticated();
+      allow write: if isServiceAccount();
+    }
+    
+    // Libraries - Read by authenticated users, Write by service account only
+    match /libraries/{library}/{subcollection}/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isServiceAccount();
+    }
+    
+    // Default deny all other access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
