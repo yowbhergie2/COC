@@ -444,6 +444,61 @@
     .search-box .clear-search.visible {
       display: block;
     }
+    .searchable-select-container {
+      position: relative;
+    }
+    .searchable-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: #fff;
+      border: 1.5px solid #e2e8f0;
+      border-top: none;
+      border-radius: 0 0 8px 8px;
+      max-height: 300px;
+      overflow-y: auto;
+      z-index: 1000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      margin-top: -1px;
+    }
+    .dropdown-list {
+      padding: 0.25rem 0;
+    }
+    .dropdown-item-custom {
+      padding: 0.75rem 1rem;
+      cursor: pointer;
+      transition: background-color 0.15s ease;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .dropdown-item-custom:last-child {
+      border-bottom: none;
+    }
+    .dropdown-item-custom:hover {
+      background-color: #f8fafc;
+    }
+    .dropdown-item-custom.selected {
+      background-color: #eff6ff;
+      color: #3b82f6;
+      font-weight: 500;
+    }
+    .dropdown-item-custom .employee-name {
+      font-weight: 500;
+      color: #1e293b;
+      display: block;
+    }
+    .dropdown-item-custom .employee-details {
+      font-size: 0.875rem;
+      color: #64748b;
+      display: block;
+      margin-top: 0.25rem;
+    }
+    .dropdown-no-results {
+      padding: 1rem;
+      text-align: center;
+      color: #94a3b8;
+      font-style: italic;
+    }
   </style>
 </head>
 <body>
@@ -617,7 +672,24 @@
             <div class="row">
               <div class="col-md-6 mb-3">
                 <label class="form-label">Employee</label>
-                <select class="form-select" id="ot-employee" required></select>
+                <div class="searchable-select-container">
+                  <div class="search-box">
+                    <i class="bi bi-search search-icon"></i>
+                    <input
+                      type="text"
+                      class="form-control"
+                      id="ot-employee-search"
+                      placeholder="Search employee by name or ID..."
+                      autocomplete="off"
+                      oninput="filterOvertimeEmployees()"
+                      onfocus="showOvertimeEmployeeDropdown()"
+                    >
+                    <input type="hidden" id="ot-employee" required>
+                  </div>
+                  <div class="searchable-dropdown" id="ot-employee-dropdown" style="display: none;">
+                    <div class="dropdown-list" id="ot-employee-list"></div>
+                  </div>
+                </div>
               </div>
               <div class="col-md-6 mb-3">
                 <label class="form-label">Overtime Date</label>
@@ -1416,17 +1488,111 @@
     }
 
     function populateEmployeeDropdowns() {
-      const dropdowns = ['ot-employee', 'cert-employee', 'ledger-employee', 'cto-employee', 'hist-employee'];
+      // Regular dropdowns (except ot-employee which is now searchable)
+      const dropdowns = ['cert-employee', 'ledger-employee', 'cto-employee', 'hist-employee'];
       dropdowns.forEach(id => {
         const select = document.getElementById(id);
-        select.innerHTML = '<option value="">Select Employee</option>';
-        employeesData.forEach(emp => {
-          if (emp.isActive) {
-            select.innerHTML += `<option value="${emp.employeeId}">${emp.lastName}, ${emp.firstName} (${emp.employeeId})</option>`;
-          }
-        });
+        if (select) {
+          select.innerHTML = '<option value="">Select Employee</option>';
+          employeesData.forEach(emp => {
+            if (emp.isActive) {
+              select.innerHTML += `<option value="${emp.employeeId}">${emp.lastName}, ${emp.firstName} (${emp.employeeId})</option>`;
+            }
+          });
+        }
       });
+
+      // Populate searchable dropdown for Log Overtime
+      populateOvertimeEmployeeDropdown();
     }
+
+    function populateOvertimeEmployeeDropdown() {
+      const dropdown = document.getElementById('ot-employee-list');
+      if (!dropdown) return;
+
+      const activeEmployees = employeesData.filter(emp => emp.isActive);
+
+      if (activeEmployees.length === 0) {
+        dropdown.innerHTML = '<div class="dropdown-no-results">No active employees found</div>';
+        return;
+      }
+
+      dropdown.innerHTML = activeEmployees.map(emp => `
+        <div class="dropdown-item-custom" onclick="selectOvertimeEmployee('${emp.employeeId}', '${emp.lastName}, ${emp.firstName}', '${emp.office}', '${emp.position}')">
+          <span class="employee-name">${emp.lastName}, ${emp.firstName}</span>
+          <span class="employee-details">${emp.employeeId} • ${emp.office} • ${emp.position}</span>
+        </div>
+      `).join('');
+    }
+
+    window.filterOvertimeEmployees = function() {
+      const searchInput = document.getElementById('ot-employee-search');
+      const dropdown = document.getElementById('ot-employee-list');
+      const searchTerm = searchInput.value.toLowerCase().trim();
+
+      const activeEmployees = employeesData.filter(emp => emp.isActive);
+
+      let filteredEmployees = activeEmployees;
+
+      if (searchTerm) {
+        filteredEmployees = activeEmployees.filter(emp => {
+          const fullName = `${emp.firstName} ${emp.lastName}`.toLowerCase();
+          const reverseName = `${emp.lastName} ${emp.firstName}`.toLowerCase();
+          const employeeId = emp.employeeId.toLowerCase();
+          const office = (emp.office || '').toLowerCase();
+          const position = (emp.position || '').toLowerCase();
+
+          return fullName.includes(searchTerm) ||
+                 reverseName.includes(searchTerm) ||
+                 employeeId.includes(searchTerm) ||
+                 office.includes(searchTerm) ||
+                 position.includes(searchTerm);
+        });
+      }
+
+      if (filteredEmployees.length === 0) {
+        dropdown.innerHTML = '<div class="dropdown-no-results">No employees found</div>';
+      } else {
+        dropdown.innerHTML = filteredEmployees.map(emp => `
+          <div class="dropdown-item-custom" onclick="selectOvertimeEmployee('${emp.employeeId}', '${emp.lastName}, ${emp.firstName}', '${emp.office}', '${emp.position}')">
+            <span class="employee-name">${emp.lastName}, ${emp.firstName}</span>
+            <span class="employee-details">${emp.employeeId} • ${emp.office} • ${emp.position}</span>
+          </div>
+        `).join('');
+      }
+
+      showOvertimeEmployeeDropdown();
+    };
+
+    window.showOvertimeEmployeeDropdown = function() {
+      const dropdown = document.getElementById('ot-employee-dropdown');
+      dropdown.style.display = 'block';
+    };
+
+    window.hideOvertimeEmployeeDropdown = function() {
+      const dropdown = document.getElementById('ot-employee-dropdown');
+      dropdown.style.display = 'none';
+    };
+
+    window.selectOvertimeEmployee = function(employeeId, name, office, position) {
+      const searchInput = document.getElementById('ot-employee-search');
+      const hiddenInput = document.getElementById('ot-employee');
+
+      searchInput.value = `${name} (${employeeId})`;
+      hiddenInput.value = employeeId;
+
+      hideOvertimeEmployeeDropdown();
+    };
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(event) {
+      const container = document.querySelector('.searchable-select-container');
+      const dropdown = document.getElementById('ot-employee-dropdown');
+
+      if (container && dropdown && !container.contains(event.target)) {
+        hideOvertimeEmployeeDropdown();
+      }
+    });
 
     function renderEmployeesTable(type) {
       // If no type specified, render both (for initial load only)
@@ -1927,6 +2093,9 @@
           const message = `Log ID: ${result.logId}\nEarned Hours: ${result.earnedHours.toFixed(2)}`;
           Modal.success('Overtime Logged!', message);
           e.target.reset();
+          // Clear searchable employee input
+          document.getElementById('ot-employee-search').value = '';
+          document.getElementById('ot-employee').value = '';
         } else {
           Modal.error('Error', result.error);
         }
