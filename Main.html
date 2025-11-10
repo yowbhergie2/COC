@@ -2471,23 +2471,33 @@
         return;
       }
 
+      console.log('Loading historical balances for employee:', selectedHistoricalEmployee);
+
+      // Simpler query - only filter by employeeId, then filter source client-side
       const q = query(
         collection(db, 'creditBatches'),
-        where('employeeId', '==', selectedHistoricalEmployee),
-        where('source', '==', 'Historical')
+        where('employeeId', '==', selectedHistoricalEmployee)
       );
 
       const unsubscribe = onSnapshot(q,
         async (snapshot) => {
+          console.log('Snapshot received, docs count:', snapshot.docs.length);
           historicalBalancesData = [];
 
           for (const docSnapshot of snapshot.docs) {
             const batch = docSnapshot.data();
-            historicalBalancesData.push({
-              id: docSnapshot.id,
-              ...batch
-            });
+            console.log('Batch data:', batch);
+
+            // Filter by source on client-side to avoid composite index requirement
+            if (batch.source === 'Historical') {
+              historicalBalancesData.push({
+                id: docSnapshot.id,
+                ...batch
+              });
+            }
           }
+
+          console.log('Filtered historical balances:', historicalBalancesData.length);
 
           // Sort by monthYear descending (client-side)
           historicalBalancesData.sort((a, b) => {
@@ -2502,7 +2512,7 @@
         (error) => {
           console.error('Error loading historical balances:', error);
           const tbody = document.getElementById('historicalBalancesTableBody');
-          tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">Error loading data. Please try again.</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">Error loading data: ${error.message}</td></tr>`;
         }
       );
 
@@ -2743,35 +2753,21 @@
 
         if (result.success) {
           const message = `
-            <div class="table-responsive">
-              <table class="table table-sm mb-0">
-                <tbody>
-                  <tr>
-                    <td class="text-end" style="width: 40%;"><strong>Batch ID:</strong></td>
-                    <td><strong>${result.batchId}</strong></td>
-                  </tr>
-                  <tr>
-                    <td class="text-end"><strong>COC Earned:</strong></td>
-                    <td>${result.cocEarned} hours</td>
-                  </tr>
-                  <tr>
-                    <td class="text-end"><strong>COC Used:</strong></td>
-                    <td>${result.cocUsed} hours</td>
-                  </tr>
-                  <tr>
-                    <td class="text-end"><strong>Remaining:</strong></td>
-                    <td><strong class="text-primary">${result.remainingHours} hours</strong></td>
-                  </tr>
-                  <tr>
-                    <td class="text-end"><strong>Valid Until:</strong></td>
-                    <td>${result.validUntil}</td>
-                  </tr>
-                  <tr>
-                    <td class="text-end"><strong>Status:</strong></td>
-                    <td><strong class="text-success">${result.status}</strong></td>
-                  </tr>
-                </tbody>
-              </table>
+            <div style="text-align: center;">
+              <div class="mb-3">
+                <h4 class="text-primary mb-0">${result.remainingHours} hours</h4>
+                <small class="text-muted">Remaining Balance</small>
+              </div>
+              <div class="d-flex justify-content-around">
+                <div>
+                  <strong>Valid Until:</strong><br>
+                  ${result.validUntil}
+                </div>
+                <div>
+                  <strong>Status:</strong><br>
+                  <span class="badge bg-success">${result.status}</span>
+                </div>
+              </div>
             </div>
           `;
           Modal.success('Historical Balance Migrated!', message);
