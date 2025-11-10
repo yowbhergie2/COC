@@ -1147,7 +1147,7 @@
                         <ol class="mb-3 ps-3">
                           <li class="mb-2"><strong>Monthly Cap:</strong> COC Earned ≤ 40 hours per month</li>
                           <li class="mb-2"><strong>Used vs Earned:</strong> COC Used must be ≤ COC Earned</li>
-                          <li class="mb-2"><strong>Issuance Date:</strong> Must be between last day of earned month and last day of next month, same year</li>
+                          <li class="mb-2"><strong>Issuance Date:</strong> Must be between last day of earned month and last day of the month after (e.g., Jan 31 to Feb 29 for January, or Dec 31 to Jan 31 for December)</li>
                           <li class="mb-2"><strong>Total Balance Cap:</strong> Adding remaining hours cannot exceed employee's 120-hour total balance</li>
                           <li class="mb-0"><strong>No Duplicates:</strong> Cannot add duplicate for same employee + month + year</li>
                         </ol>
@@ -1891,18 +1891,28 @@
 
         // Set min and max dates based on the selected month
         const [year, month] = monthYear.split('-');
-        const earnedMonth = new Date(year, month - 1, 1);
+        const earnedYear = parseInt(year);
+        const earnedMonth = parseInt(month);
 
-        // Last day of earned month
-        const lastDayOfMonth = new Date(year, month, 0);
-        const minDate = lastDayOfMonth.toISOString().split('T')[0];
+        // Min: Last day of earned month (e.g., Jan 31, 2024 for January 2024)
+        const lastDayOfEarnedMonth = new Date(earnedYear, earnedMonth, 0);
+        const minDate = lastDayOfEarnedMonth.toISOString().split('T')[0];
 
-        // Last day of next month
-        const nextMonth = new Date(year, month, 0);
-        const maxDate = nextMonth.toISOString().split('T')[0];
+        // Max: Last day of the month AFTER the earned month
+        // (e.g., Feb 29, 2024 for January 2024, or Jan 31, 2025 for December 2024)
+        const lastDayOfNextMonth = new Date(earnedYear, earnedMonth + 1, 0);
+        const maxDate = lastDayOfNextMonth.toISOString().split('T')[0];
+
+        // Default: 1st day of the month AFTER the earned month
+        // (e.g., Feb 1, 2024 for January 2024, or Jan 1, 2025 for December 2024)
+        const firstDayOfNextMonth = new Date(earnedYear, earnedMonth, 1);
+        const defaultDate = firstDayOfNextMonth.toISOString().split('T')[0];
 
         dateIssuance.min = minDate;
         dateIssuance.max = maxDate;
+
+        // Set default value to the 1st day of the month AFTER the earned month
+        dateIssuance.value = defaultDate;
       } else {
         dateIssuance.disabled = true;
         dateIssuance.value = '';
