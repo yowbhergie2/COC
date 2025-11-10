@@ -2677,8 +2677,10 @@
           const expiry = new Date(expiryDate);
           expiry.setHours(0, 0, 0, 0);
 
-          // If current date is ON or AFTER expiry date, mark as expired
-          if (today >= expiry) {
+          // If current date is AFTER expiry date (not on the expiry date itself), mark as expired
+          // "Valid Until Nov 11" means valid through the entire day of Nov 11
+          // Should only expire on Nov 12 onwards
+          if (today > expiry) {
             actualStatus = 'Expired';
           } else {
             actualStatus = 'Active';
