@@ -402,6 +402,48 @@
       border-radius: 8px;
       color: #92400e;
     }
+    .search-box {
+      position: relative;
+      margin-bottom: 1.25rem;
+    }
+    .search-box .form-control {
+      padding-left: 2.75rem;
+      background-color: #fff;
+      border: 1.5px solid #e2e8f0;
+      transition: all 0.2s ease;
+    }
+    .search-box .form-control:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    .search-box .search-icon {
+      position: absolute;
+      left: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #94a3b8;
+      font-size: 1.1rem;
+      pointer-events: none;
+    }
+    .search-box .clear-search {
+      position: absolute;
+      right: 0.75rem;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: #94a3b8;
+      cursor: pointer;
+      padding: 0.25rem;
+      display: none;
+      transition: color 0.2s ease;
+    }
+    .search-box .clear-search:hover {
+      color: #64748b;
+    }
+    .search-box .clear-search.visible {
+      display: block;
+    }
   </style>
 </head>
 <body>
@@ -506,6 +548,13 @@
 
       <div class="tab-content">
         <div class="tab-pane fade show active" id="active-employees-tab">
+          <div class="search-box">
+            <i class="bi bi-search search-icon"></i>
+            <input type="text" class="form-control" id="search-active-employees" placeholder="Search by Name, Office, or Position..." oninput="filterEmployees('active')">
+            <button class="clear-search" id="clear-active-search" onclick="clearEmployeeSearch('active')">
+              <i class="bi bi-x-circle-fill"></i>
+            </button>
+          </div>
           <div class="card">
             <div class="card-body">
               <div class="table-responsive">
@@ -529,6 +578,13 @@
         </div>
 
         <div class="tab-pane fade" id="inactive-employees-tab">
+          <div class="search-box">
+            <i class="bi bi-search search-icon"></i>
+            <input type="text" class="form-control" id="search-inactive-employees" placeholder="Search by Name, Office, or Position..." oninput="filterEmployees('inactive')">
+            <button class="clear-search" id="clear-inactive-search" onclick="clearEmployeeSearch('inactive')">
+              <i class="bi bi-x-circle-fill"></i>
+            </button>
+          </div>
           <div class="card">
             <div class="card-body">
               <div class="table-responsive">
@@ -829,6 +885,13 @@
           <button class="btn btn-primary mb-3" onclick="showAddLibraryModal('offices')">
             <i class="bi bi-plus-circle"></i> Add Office
           </button>
+          <div class="search-box">
+            <i class="bi bi-search search-icon"></i>
+            <input type="text" class="form-control" id="search-offices" placeholder="Search offices by name..." oninput="filterLibrary('offices')">
+            <button class="clear-search" id="clear-offices-search" onclick="clearLibrarySearch('offices')">
+              <i class="bi bi-x-circle-fill"></i>
+            </button>
+          </div>
           <div class="card">
             <div class="card-body">
               <div class="table-responsive">
@@ -851,6 +914,13 @@
           <button class="btn btn-primary mb-3" onclick="showAddLibraryModal('positions')">
             <i class="bi bi-plus-circle"></i> Add Position
           </button>
+          <div class="search-box">
+            <i class="bi bi-search search-icon"></i>
+            <input type="text" class="form-control" id="search-positions" placeholder="Search positions by name..." oninput="filterLibrary('positions')">
+            <button class="clear-search" id="clear-positions-search" onclick="clearLibrarySearch('positions')">
+              <i class="bi bi-x-circle-fill"></i>
+            </button>
+          </div>
           <div class="card">
             <div class="card-body">
               <div class="table-responsive">
@@ -1120,6 +1190,9 @@
     let db, auth, currentUser;
     let employeesData = [];
     let unsubscribers = [];
+    let librariesData = { offices: [], positions: [] };
+    let employeeSearchTerms = { active: '', inactive: '' };
+    let librarySearchTerms = { offices: '', positions: '' };
 
     window.Modal = {
       _instance: null,
@@ -1349,14 +1422,42 @@
     }
 
     function renderEmployeesTable() {
-      const activeEmployees = employeesData.filter(emp => emp.isActive);
-      const inactiveEmployees = employeesData.filter(emp => !emp.isActive);
-      
+      // Filter employees based on search terms
+      let activeEmployees = employeesData.filter(emp => emp.isActive);
+      let inactiveEmployees = employeesData.filter(emp => !emp.isActive);
+
+      // Apply search filter to active employees
+      if (employeeSearchTerms.active) {
+        activeEmployees = activeEmployees.filter(emp => {
+          const searchLower = employeeSearchTerms.active.toLowerCase();
+          const fullName = `${emp.firstName} ${emp.lastName}`.toLowerCase();
+          const reverseName = `${emp.lastName} ${emp.firstName}`.toLowerCase();
+          return fullName.includes(searchLower) ||
+                 reverseName.includes(searchLower) ||
+                 (emp.office && emp.office.toLowerCase().includes(searchLower)) ||
+                 (emp.position && emp.position.toLowerCase().includes(searchLower));
+        });
+      }
+
+      // Apply search filter to inactive employees
+      if (employeeSearchTerms.inactive) {
+        inactiveEmployees = inactiveEmployees.filter(emp => {
+          const searchLower = employeeSearchTerms.inactive.toLowerCase();
+          const fullName = `${emp.firstName} ${emp.lastName}`.toLowerCase();
+          const reverseName = `${emp.lastName} ${emp.firstName}`.toLowerCase();
+          return fullName.includes(searchLower) ||
+                 reverseName.includes(searchLower) ||
+                 (emp.office && emp.office.toLowerCase().includes(searchLower)) ||
+                 (emp.position && emp.position.toLowerCase().includes(searchLower));
+        });
+      }
+
       const activeTableBody = document.getElementById('activeEmployeesTableBody');
       const inactiveTableBody = document.getElementById('inactiveEmployeesTableBody');
-      
+
       if (activeEmployees.length === 0) {
-        activeTableBody.innerHTML = '<tr><td colspan="5" class="text-center">No active employees found</td></tr>';
+        const message = employeeSearchTerms.active ? 'No employees match your search' : 'No active employees found';
+        activeTableBody.innerHTML = `<tr><td colspan="5" class="text-center">${message}</td></tr>`;
       } else {
         activeTableBody.innerHTML = activeEmployees.map(emp => `
           <tr>
@@ -1372,9 +1473,10 @@
           </tr>
         `).join('');
       }
-      
+
       if (inactiveEmployees.length === 0) {
-        inactiveTableBody.innerHTML = '<tr><td colspan="5" class="text-center">No inactive employees found</td></tr>';
+        const message = employeeSearchTerms.inactive ? 'No employees match your search' : 'No inactive employees found';
+        inactiveTableBody.innerHTML = `<tr><td colspan="5" class="text-center">${message}</td></tr>`;
       } else {
         inactiveTableBody.innerHTML = inactiveEmployees.map(emp => `
           <tr>
@@ -1391,6 +1493,33 @@
         `).join('');
       }
     }
+
+    window.filterEmployees = function(type) {
+      const searchInput = document.getElementById(`search-${type}-employees`);
+      const clearBtn = document.getElementById(`clear-${type}-search`);
+
+      employeeSearchTerms[type] = searchInput.value;
+
+      // Show/hide clear button
+      if (searchInput.value) {
+        clearBtn.classList.add('visible');
+      } else {
+        clearBtn.classList.remove('visible');
+      }
+
+      renderEmployeesTable();
+    };
+
+    window.clearEmployeeSearch = function(type) {
+      const searchInput = document.getElementById(`search-${type}-employees`);
+      const clearBtn = document.getElementById(`clear-${type}-search`);
+
+      searchInput.value = '';
+      employeeSearchTerms[type] = '';
+      clearBtn.classList.remove('visible');
+
+      renderEmployeesTable();
+    };
 
     async function loadDashboard() {
       const batchesQ = query(collection(db, 'creditBatches'), where('status', '==', 'Active'));
@@ -1523,33 +1652,79 @@
       ['offices', 'positions'].forEach(libType => {
         const q = query(collection(db, 'libraries', libType, 'items'), orderBy('name'));
         onSnapshot(q, (snapshot) => {
-          const container = document.getElementById(`${libType}-list`);
-          if (snapshot.empty) {
-            container.innerHTML = '<tr><td colspan="2" class="text-center text-muted">No items found</td></tr>';
-            return;
-          }
+          // Store library data for filtering
+          librariesData[libType] = [];
+          snapshot.forEach((doc) => {
+            librariesData[libType].push({ id: doc.id, ...doc.data() });
+          });
 
-          container.innerHTML = snapshot.docs.map(doc => {
-            const item = doc.data();
-            return `
-              <tr>
-                <td>${item.name}</td>
-                <td>
-                  <button class="btn btn-sm btn-outline-primary me-1" onclick="editLibraryItem('${libType}', '${item.id}', '${item.name}')">
-                    <i class="bi bi-pencil"></i>
-                  </button>
-                  <button class="btn btn-sm btn-outline-danger" onclick="deleteLibraryItem('${libType}', '${item.id}', '${item.name}')">
-                    <i class="bi bi-trash"></i>
-                  </button>
-                </td>
-              </tr>
-            `;
-          }).join('');
-
+          renderLibraryTable(libType);
           populateLibraryDropdowns(libType, snapshot.docs);
         });
       });
     }
+
+    function renderLibraryTable(libType) {
+      const container = document.getElementById(`${libType}-list`);
+      let items = librariesData[libType];
+
+      // Apply search filter
+      if (librarySearchTerms[libType]) {
+        items = items.filter(item => {
+          const searchLower = librarySearchTerms[libType].toLowerCase();
+          return item.name.toLowerCase().includes(searchLower);
+        });
+      }
+
+      if (items.length === 0) {
+        const message = librarySearchTerms[libType] ? 'No items match your search' : 'No items found';
+        container.innerHTML = `<tr><td colspan="2" class="text-center text-muted">${message}</td></tr>`;
+        return;
+      }
+
+      container.innerHTML = items.map(item => {
+        return `
+          <tr>
+            <td>${item.name}</td>
+            <td>
+              <button class="btn btn-sm btn-outline-primary me-1" onclick="editLibraryItem('${libType}', '${item.id}', '${item.name}')">
+                <i class="bi bi-pencil"></i>
+              </button>
+              <button class="btn btn-sm btn-outline-danger" onclick="deleteLibraryItem('${libType}', '${item.id}', '${item.name}')">
+                <i class="bi bi-trash"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    window.filterLibrary = function(type) {
+      const searchInput = document.getElementById(`search-${type}`);
+      const clearBtn = document.getElementById(`clear-${type}-search`);
+
+      librarySearchTerms[type] = searchInput.value;
+
+      // Show/hide clear button
+      if (searchInput.value) {
+        clearBtn.classList.add('visible');
+      } else {
+        clearBtn.classList.remove('visible');
+      }
+
+      renderLibraryTable(type);
+    };
+
+    window.clearLibrarySearch = function(type) {
+      const searchInput = document.getElementById(`search-${type}`);
+      const clearBtn = document.getElementById(`clear-${type}-search`);
+
+      searchInput.value = '';
+      librarySearchTerms[type] = '';
+      clearBtn.classList.remove('visible');
+
+      renderLibraryTable(type);
+    };
 
     function populateLibraryDropdowns(libType, docs) {
       const selectId = libType === 'offices' ? 'emp-office' : 'emp-position';
