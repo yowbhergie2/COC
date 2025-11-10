@@ -712,7 +712,7 @@
             </div>
             <div class="col-md-4 mb-3">
               <label class="form-label"><strong>Year</strong> <span class="text-danger">*</span></label>
-              <select class="form-select" id="ot-year" onchange="updateOvertimeContext()"></select>
+              <select class="form-select" id="ot-year" onchange="updateOvertimeMonthOptions()"></select>
             </div>
           </div>
         </div>
@@ -3046,6 +3046,83 @@
       hiddenInput.value = employeeId;
 
       hideOvertimeEmployeeDropdown();
+      updateOvertimeMonthOptions(); // Update month options based on employee/year
+    };
+
+    // Store original month names
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                        'July', 'August', 'September', 'October', 'November', 'December'];
+
+    // Update month options to disable future months and months with historical balance
+    window.updateOvertimeMonthOptions = async function() {
+      const employeeId = document.getElementById('ot-employee').value;
+      const year = parseInt(document.getElementById('ot-year').value);
+      const monthSelect = document.getElementById('ot-month');
+
+      if (!employeeId || !year) {
+        // Reset all months to enabled if no employee/year selected
+        Array.from(monthSelect.options).forEach((option, index) => {
+          if (option.value !== '') {
+            option.disabled = false;
+            option.textContent = monthNames[parseInt(option.value)];
+          }
+        });
+        return;
+      }
+
+      const today = new Date();
+      const currentYear = today.getFullYear();
+      const currentMonth = today.getMonth(); // 0-indexed
+
+      try {
+        // Get months with historical balance
+        const histResult = await new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(reject)
+            .getHistoricalBalanceMonths_SERVER(employeeId, year);
+        });
+
+        const historicalMonths = histResult.months || [];
+
+        // Update month options
+        Array.from(monthSelect.options).forEach(option => {
+          if (option.value === '') return; // Skip "Select Month" option
+
+          const monthValue = parseInt(option.value);
+          const monthName = monthNames[monthValue];
+
+          // Disable if future month
+          const isFuture = (year > currentYear) || (year === currentYear && monthValue > currentMonth);
+
+          // Disable if has historical balance
+          const hasHistorical = historicalMonths.includes(monthValue);
+
+          if (isFuture) {
+            option.disabled = true;
+            option.textContent = `${monthName} (Future)`;
+          } else if (hasHistorical) {
+            option.disabled = true;
+            option.textContent = `${monthName} (Historical Balance)`;
+          } else {
+            option.disabled = false;
+            option.textContent = monthName;
+          }
+        });
+
+        // If currently selected month is now disabled, clear selection
+        const selectedMonth = monthSelect.value;
+        if (selectedMonth !== '') {
+          const selectedOption = monthSelect.options[monthSelect.selectedIndex];
+          if (selectedOption.disabled) {
+            monthSelect.value = '';
+          }
+        }
+
+      } catch (error) {
+        console.error('Error updating month options:', error);
+      }
+
       updateOvertimeContext();
     };
 

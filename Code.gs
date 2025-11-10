@@ -135,40 +135,42 @@ function getFirestore() {
 function checkOvertimeBlocks_SERVER(employeeId, month, year) {
   try {
     const db = getFirestore();
+    const monthYearStr = `${year}-${String(month + 1).padStart(2, '0')}`;
 
     // Check for existing certificate for this month/year
-    const monthStart = new Date(year, month, 1);
-    const monthEnd = new Date(year, month + 1, 0);
+    // Query all certificates for employee and filter by monthYear in code
+    const allCertificatesQuery = db.query('certificates').execute();
 
-    const certificatesQuery = db.query('certificates')
-      .where('employeeId', '==', employeeId)
-      .where('monthYear', '==', `${year}-${String(month + 1).padStart(2, '0')}`)
-      .execute();
-
-    if (certificatesQuery.length > 0) {
-      return {
-        success: false,
-        error: 'A certificate already exists for this month. Cannot log overtime.'
-      };
+    for (let i = 0; i < allCertificatesQuery.length; i++) {
+      const cert = allCertificatesQuery[i].obj;
+      if (cert.employeeId === employeeId && cert.monthYear === monthYearStr) {
+        return {
+          success: false,
+          error: 'A certificate already exists for this month. Cannot log overtime.'
+        };
+      }
     }
 
     // Check for historical balance for this month/year
-    const historicalQuery = db.query('creditBatches')
-      .where('employeeId', '==', employeeId)
-      .where('source', '==', 'Historical')
-      .where('monthYear', '==', `${year}-${String(month + 1).padStart(2, '0')}`)
-      .execute();
+    // Query all creditBatches for employee and filter in code
+    const allBatchesQuery = db.query('creditBatches').execute();
 
-    if (historicalQuery.length > 0) {
-      return {
-        success: false,
-        error: 'Historical balance exists for this month. Cannot log overtime.'
-      };
+    for (let i = 0; i < allBatchesQuery.length; i++) {
+      const batch = allBatchesQuery[i].obj;
+      if (batch.employeeId === employeeId &&
+          batch.source === 'Historical' &&
+          batch.monthYear === monthYearStr) {
+        return {
+          success: false,
+          error: 'Historical balance exists for this month. Cannot log overtime.'
+        };
+      }
     }
 
     return { success: true };
 
   } catch (error) {
+    Logger.log('Error checking overtime blocks: ' + error.toString());
     return {
       success: false,
       error: error.toString()
@@ -258,13 +260,20 @@ function getDayType_SERVER(dateStr) {
     let isHoliday = false;
     let holidayName = '';
 
-    const holidaysQuery = db.query('holidays')
-      .where('date', '==', dateStr)
-      .execute();
+    try {
+      const holidaysQuery = db.query('holidays').execute();
 
-    if (holidaysQuery.length > 0) {
-      isHoliday = true;
-      holidayName = holidaysQuery[0].obj.name || 'Holiday';
+      for (let i = 0; i < holidaysQuery.length; i++) {
+        const holiday = holidaysQuery[i].obj;
+        if (holiday.date === dateStr) {
+          isHoliday = true;
+          holidayName = holiday.name || 'Holiday';
+          break;
+        }
+      }
+    } catch (holidayError) {
+      Logger.log('Error checking holidays (collection may not exist): ' + holidayError.toString());
+      // Continue without holiday check
     }
 
     return {
@@ -275,10 +284,44 @@ function getDayType_SERVER(dateStr) {
     };
 
   } catch (error) {
+    Logger.log('Error detecting day type: ' + error.toString());
     return {
       success: false,
       isWeekend: false,
       isHoliday: false,
+      error: error.toString()
+    };
+  }
+}
+
+// Get months with historical balance for an employee
+function getHistoricalBalanceMonths_SERVER(employeeId, year) {
+  try {
+    const db = getFirestore();
+    const allBatchesQuery = db.query('creditBatches').execute();
+
+    const historicalMonths = [];
+
+    for (let i = 0; i < allBatchesQuery.length; i++) {
+      const batch = allBatchesQuery[i].obj;
+      if (batch.employeeId === employeeId && batch.source === 'Historical' && batch.monthYear) {
+        const [batchYear, batchMonth] = batch.monthYear.split('-');
+        if (parseInt(batchYear) === parseInt(year)) {
+          historicalMonths.push(parseInt(batchMonth) - 1); // Return 0-indexed month
+        }
+      }
+    }
+
+    return {
+      success: true,
+      months: historicalMonths
+    };
+
+  } catch (error) {
+    Logger.log('Error getting historical balance months: ' + error.toString());
+    return {
+      success: false,
+      months: [],
       error: error.toString()
     };
   }
@@ -323,7 +366,20 @@ function logOvertimeBatch_SERVER(data) {
 
     // Check for duplicate dates (server-side)
     const dateSet = new Set();
+
+    // Get all existing overtime logs for this employee
+    const allLogsQuery = db.query('overtimeLogs').execute();
+    const employeeLogs = [];
+
+    for (let i = 0; i < allLogsQuery.length; i++) {
+      const log = allLogsQuery[i].obj;
+      if (log.employeeId === data.employeeId) {
+        employeeLogs.push(log);
+      }
+    }
+
     for (const entry of data.entries) {
+      // Check for duplicates within the submission
       if (dateSet.has(entry.date)) {
         return {
           success: false,
@@ -332,17 +388,15 @@ function logOvertimeBatch_SERVER(data) {
       }
       dateSet.add(entry.date);
 
-      // Check if date already exists in database
-      const existingDateQuery = db.query('overtimeLogs')
-        .where('employeeId', '==', data.employeeId)
-        .where('overtimeDate', '==', new Date(entry.date).toISOString())
-        .execute();
-
-      if (existingDateQuery.length > 0) {
-        return {
-          success: false,
-          error: `Overtime already logged for ${entry.date}`
-        };
+      // Check if date already exists in database for this employee
+      const entryDateISO = new Date(entry.date).toISOString();
+      for (let i = 0; i < employeeLogs.length; i++) {
+        if (employeeLogs[i].overtimeDate === entryDateISO) {
+          return {
+            success: false,
+            error: `Overtime already logged for ${entry.date}`
+          };
+        }
       }
     }
 
