@@ -805,8 +805,26 @@ function migrateHistoricalBalance_SERVER(data) {
     const expiryDate = new Date(dateOfIssuance);
     expiryDate.setFullYear(expiryDate.getFullYear() + 1);
     expiryDate.setDate(expiryDate.getDate() - 1);
-    
-    const status = remainingHours > 0 ? 'Active' : 'Used';
+
+    // Calculate status with expiry check
+    let status;
+    if (remainingHours === 0) {
+      status = 'Used';
+    } else {
+      // Check if expired
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const expiry = new Date(expiryDate);
+      expiry.setHours(0, 0, 0, 0);
+
+      // "Valid Until Nov 11" means valid through entire day of Nov 11
+      // Should only expire on Nov 12 onwards
+      if (today > expiry) {
+        status = 'Expired';
+      } else {
+        status = 'Active';
+      }
+    }
     
     const batchId = 'BATCH_' + Utilities.getUuid();
     const ledgerEarnedId = 'LEDGER_' + Utilities.getUuid();
@@ -958,7 +976,25 @@ function updateHistoricalBalance_SERVER(data) {
     expiryDate.setFullYear(expiryDate.getFullYear() + 1);
     expiryDate.setDate(expiryDate.getDate() - 1);
 
-    const status = remainingHours > 0 ? 'Active' : 'Used';
+    // Calculate status with expiry check
+    let status;
+    if (remainingHours === 0) {
+      status = 'Used';
+    } else {
+      // Check if expired
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const expiry = new Date(expiryDate);
+      expiry.setHours(0, 0, 0, 0);
+
+      // "Valid Until Nov 11" means valid through entire day of Nov 11
+      // Should only expire on Nov 12 onwards
+      if (today > expiry) {
+        status = 'Expired';
+      } else {
+        status = 'Active';
+      }
+    }
 
     // Merge: Start with ALL existing fields, then override only what we're updating
     const updateData = Object.assign({}, existing, {
