@@ -811,15 +811,19 @@ function migrateHistoricalBalance_SERVER(data) {
     if (remainingHours === 0) {
       status = 'Used';
     } else {
-      // Check if expired
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      // Check if expired - MUST use Manila timezone (UTC+8)
+      // Get current date in Manila timezone as YYYY-MM-DD string
+      const nowManilaStr = Utilities.formatDate(new Date(), 'Asia/Manila', 'yyyy-MM-dd');
+      // Create Date object representing midnight of current day in Manila
+      const todayManila = new Date(nowManilaStr);
+      todayManila.setHours(0, 0, 0, 0);
+
       const expiry = new Date(expiryDate);
       expiry.setHours(0, 0, 0, 0);
 
       // "Valid Until Nov 11" means valid through entire day of Nov 11
       // Should only expire on Nov 12 onwards
-      if (today > expiry) {
+      if (todayManila > expiry) {
         status = 'Expired';
       } else {
         status = 'Active';
@@ -981,15 +985,19 @@ function updateHistoricalBalance_SERVER(data) {
     if (remainingHours === 0) {
       status = 'Used';
     } else {
-      // Check if expired
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      // Check if expired - MUST use Manila timezone (UTC+8)
+      // Get current date in Manila timezone as YYYY-MM-DD string
+      const nowManilaStr = Utilities.formatDate(new Date(), 'Asia/Manila', 'yyyy-MM-dd');
+      // Create Date object representing midnight of current day in Manila
+      const todayManila = new Date(nowManilaStr);
+      todayManila.setHours(0, 0, 0, 0);
+
       const expiry = new Date(expiryDate);
       expiry.setHours(0, 0, 0, 0);
 
       // "Valid Until Nov 11" means valid through entire day of Nov 11
       // Should only expire on Nov 12 onwards
-      if (today > expiry) {
+      if (todayManila > expiry) {
         status = 'Expired';
       } else {
         status = 'Active';

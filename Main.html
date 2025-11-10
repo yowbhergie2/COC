@@ -2556,29 +2556,50 @@
       const earned = parseFloat(document.getElementById('hist-coc-earned').value) || 0;
       const used = parseFloat(document.getElementById('hist-coc-used').value) || 0;
       const dateIssuance = document.getElementById('hist-date-issuance').value;
-      
+
       const remaining = earned - used;
       document.getElementById('hist-remaining').value = remaining >= 0 ? remaining.toFixed(2) + ' hours' : 'Invalid';
-      
+
+      let validUntil = null;
       if (dateIssuance) {
         const issuanceDate = new Date(dateIssuance);
-        const validUntil = new Date(issuanceDate);
+        validUntil = new Date(issuanceDate);
         validUntil.setFullYear(validUntil.getFullYear() + 1);
         validUntil.setDate(validUntil.getDate() - 1);
-        
+
         const options = { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Manila' };
         document.getElementById('hist-valid-until').value = validUntil.toLocaleDateString('en-US', options);
       } else {
         document.getElementById('hist-valid-until').value = '';
       }
-      
-      if (remaining > 0) {
-        document.getElementById('hist-status').value = 'Active';
+
+      // Calculate status with expiry check
+      let status;
+      if (remaining < 0) {
+        status = 'Invalid';
       } else if (remaining === 0) {
-        document.getElementById('hist-status').value = 'Used';
+        status = 'Used';
       } else {
-        document.getElementById('hist-status').value = 'Invalid';
+        // Has remaining hours - check if expired
+        if (validUntil) {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const expiry = new Date(validUntil);
+          expiry.setHours(0, 0, 0, 0);
+
+          // "Valid Until Nov 11" means valid through entire day of Nov 11
+          // Should only expire on Nov 12 onwards
+          if (today > expiry) {
+            status = 'Expired';
+          } else {
+            status = 'Active';
+          }
+        } else {
+          status = 'Active';
+        }
       }
+
+      document.getElementById('hist-status').value = status;
     };
 
     document.getElementById('hist-date-issuance').addEventListener('change', calculateHistoricalRemaining);
