@@ -2669,24 +2669,30 @@
         let actualStatus = batch.status;
         let statusBadge = '';
 
-        // Check if expired (remainingHours > 0 but expiryDate has passed)
         const today = new Date();
         today.setHours(0, 0, 0, 0); // Reset to start of day for comparison
 
-        if (batch.remainingHours > 0 && expiryDate !== '-') {
-          const expiry = new Date(expiryDate);
-          expiry.setHours(0, 0, 0, 0);
+        // Determine status based on remaining hours and expiry date
+        if (batch.remainingHours === 0 || batch.remainingHours === undefined) {
+          actualStatus = 'Used';
+        } else if (batch.remainingHours > 0) {
+          // Has remaining hours - check if expired
+          if (expiryDate !== '-') {
+            const expiry = new Date(expiryDate);
+            expiry.setHours(0, 0, 0, 0);
 
-          // If current date is AFTER expiry date (not on the expiry date itself), mark as expired
-          // "Valid Until Nov 11" means valid through the entire day of Nov 11
-          // Should only expire on Nov 12 onwards
-          if (today > expiry) {
-            actualStatus = 'Expired';
+            // If current date is AFTER expiry date (not on the expiry date itself), mark as expired
+            // "Valid Until Nov 11" means valid through the entire day of Nov 11
+            // Should only expire on Nov 12 onwards
+            if (today > expiry) {
+              actualStatus = 'Expired';
+            } else {
+              actualStatus = 'Active';
+            }
           } else {
+            // No expiry date but has remaining hours - mark as Active
             actualStatus = 'Active';
           }
-        } else if (batch.remainingHours === 0) {
-          actualStatus = 'Used';
         }
 
         // Status badge based on actual (dynamic) status
