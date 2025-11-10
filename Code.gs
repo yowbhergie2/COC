@@ -927,7 +927,7 @@ function updateHistoricalBalance_SERVER(data) {
     const earnedMonth = month;
     const earnedYear = year;
 
-    // Get existing document to preserve critical fields
+    // Get existing document to preserve ALL fields
     const existingDoc = db.getDocument('creditBatches/' + batchId);
     if (!existingDoc) {
       return {
@@ -960,13 +960,8 @@ function updateHistoricalBalance_SERVER(data) {
 
     const status = remainingHours > 0 ? 'Active' : 'Used';
 
-    // Preserve critical fields from existing document
-    const updateData = {
-      batchId: batchId,
-      employeeId: existing.employeeId,
-      certificateId: 'HISTORICAL',
-      source: 'Historical',
-      isHistorical: true,
+    // Merge: Start with ALL existing fields, then override only what we're updating
+    const updateData = Object.assign({}, existing, {
       initialHours: cocEarned,
       earnedHours: cocEarned,
       usedHours: cocUsed,
@@ -978,11 +973,9 @@ function updateHistoricalBalance_SERVER(data) {
       status: status,
       earnedMonth: earnedMonth,
       earnedYear: earnedYear,
-      migratedAt: existing.migratedAt,
-      migratedBy: existing.migratedBy,
       updatedAt: new Date().toISOString(),
       updatedBy: Session.getActiveUser().getEmail()
-    };
+    });
 
     db.updateDocument('creditBatches/' + batchId, updateData);
 
