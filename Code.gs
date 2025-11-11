@@ -270,6 +270,8 @@ function getTotalBalance_SERVER(employeeId) {
       }
     }
 
+    const totalBalance = activeBalance + uncertifiedBalance;
+
     return {
       success: true,
       active: Number(activeBalance.toFixed(2)),
