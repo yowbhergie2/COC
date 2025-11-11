@@ -61,6 +61,7 @@ function onOpen() {
     .addItem('Open CompTime Tracker', 'showAppModal')
     .addSeparator()
     .addItem('Initialize Libraries (One-time)', 'initializeLibraries')
+    .addItem('Initialize Holidays (2024-2025)', 'initializeHolidays')
     .addItem('Sync Reports to Sheet', 'syncReportsToSheet')
     .addToUi();
 }
@@ -72,13 +73,13 @@ function initializeLibraries() {
     'This will create:\n• 9 Offices\n• 45 Positions\n\n⏱️ Expected time: 30-60 seconds\n⚠️ Run this only ONCE\n\nContinue?',
     ui.ButtonSet.YES_NO
   );
-  
+
   if (response == ui.Button.YES) {
     const startTime = new Date();
     const result = initializeLibraries_SERVER();
     const endTime = new Date();
     const duration = Math.round((endTime - startTime) / 1000);
-    
+
     if (result.success) {
       ui.alert(
         '✓ Libraries Initialized Successfully!',
@@ -88,6 +89,35 @@ function initializeLibraries() {
     } else {
       ui.alert('✗ Error', result.error, ui.ButtonSet.OK);
     }
+  }
+}
+
+function initializeHolidays() {
+  const ui = SpreadsheetApp.getUi();
+  const response = ui.alert(
+    'Initialize Holidays (2024-2025)',
+    'This will add the predefined Philippines regular and special non-working holidays for calendar years 2024 and 2025.\n\nExisting holidays with the same date will be skipped.\n\nContinue?',
+    ui.ButtonSet.YES_NO
+  );
+
+  if (response !== ui.Button.YES) {
+    return;
+  }
+
+  try {
+    const result = initializeHolidays_SERVER();
+    if (result.success) {
+      let message = `Total predefined holidays: ${result.totalDefined}\nCreated: ${result.createdCount}\nSkipped (already exist): ${result.skippedCount}`;
+      if (Array.isArray(result.createdHolidays) && result.createdHolidays.length > 0) {
+        message += `\n\nCreated entries:\n${result.createdHolidays.join('\n')}`;
+      }
+
+      ui.alert('✓ Holidays Initialized', message, ui.ButtonSet.OK);
+    } else {
+      ui.alert('✗ Error', result.error || 'Failed to initialize holidays.', ui.ButtonSet.OK);
+    }
+  } catch (error) {
+    ui.alert('✗ Error', error.toString(), ui.ButtonSet.OK);
   }
 }
 
@@ -242,9 +272,9 @@ function getTotalBalance_SERVER(employeeId) {
 
     return {
       success: true,
-      active: activeBalance,
-      uncertified: uncertifiedBalance,
-      total: activeBalance + uncertifiedBalance
+      active: Number(activeBalance.toFixed(2)),
+      uncertified: Number(uncertifiedBalance.toFixed(2)),
+      total: Number(totalBalance.toFixed(2))
     };
 
   } catch (error) {
@@ -775,11 +805,117 @@ function deleteHoliday_SERVER(holidayId) {
   try {
     const db = getFirestore();
     db.deleteDocument('holidays/' + holidayId);
-    
+
     return {
       success: true
     };
-    
+
+  } catch (error) {
+    return {
+      success: false,
+      error: error.toString()
+    };
+  }
+}
+
+function initializeHolidays_SERVER() {
+  try {
+    const db = getFirestore();
+
+    const holidays2024 = [
+      { date: '2024-01-01', name: "New Year's Day", type: 'Regular', isRecurring: true },
+      { date: '2024-02-10', name: 'Chinese New Year', type: 'Special', isRecurring: false },
+      { date: '2024-02-25', name: 'EDSA People Power Revolution Anniversary', type: 'Special', isRecurring: true },
+      { date: '2024-03-28', name: 'Maundy Thursday', type: 'Regular', isRecurring: false },
+      { date: '2024-03-29', name: 'Good Friday', type: 'Regular', isRecurring: false },
+      { date: '2024-03-30', name: 'Black Saturday', type: 'Special', isRecurring: false },
+      { date: '2024-04-09', name: 'Araw ng Kagitingan', type: 'Regular', isRecurring: true },
+      { date: '2024-04-10', name: "Eid'l Fitr", type: 'Regular', isRecurring: false },
+      { date: '2024-05-01', name: 'Labor Day', type: 'Regular', isRecurring: true },
+      { date: '2024-06-12', name: 'Independence Day', type: 'Regular', isRecurring: true },
+      { date: '2024-06-17', name: "Eid'l Adha", type: 'Regular', isRecurring: false },
+      { date: '2024-08-21', name: 'Ninoy Aquino Day', type: 'Special', isRecurring: true },
+      { date: '2024-08-26', name: 'National Heroes Day', type: 'Regular', isRecurring: false },
+      { date: '2024-11-01', name: "All Saints' Day", type: 'Special', isRecurring: true },
+      { date: '2024-11-02', name: 'All Souls\' Day', type: 'Special', isRecurring: true },
+      { date: '2024-11-30', name: 'Bonifacio Day', type: 'Regular', isRecurring: true },
+      { date: '2024-12-08', name: 'Feast of the Immaculate Conception', type: 'Special', isRecurring: true },
+      { date: '2024-12-24', name: 'Christmas Eve', type: 'Special', isRecurring: true },
+      { date: '2024-12-25', name: 'Christmas Day', type: 'Regular', isRecurring: true },
+      { date: '2024-12-30', name: 'Rizal Day', type: 'Regular', isRecurring: true },
+      { date: '2024-12-31', name: 'Last Day of the Year', type: 'Special', isRecurring: true }
+    ];
+
+    const holidays2025 = [
+      { date: '2025-01-01', name: "New Year's Day", type: 'Regular', isRecurring: true },
+      { date: '2025-01-29', name: 'Chinese New Year', type: 'Special', isRecurring: false },
+      { date: '2025-02-25', name: 'EDSA People Power Revolution Anniversary', type: 'Special', isRecurring: true },
+      { date: '2025-04-09', name: 'Araw ng Kagitingan', type: 'Regular', isRecurring: true },
+      { date: '2025-04-17', name: 'Maundy Thursday', type: 'Regular', isRecurring: false },
+      { date: '2025-04-18', name: 'Good Friday', type: 'Regular', isRecurring: false },
+      { date: '2025-04-19', name: 'Black Saturday', type: 'Special', isRecurring: false },
+      { date: '2025-05-01', name: 'Labor Day', type: 'Regular', isRecurring: true },
+      { date: '2025-06-12', name: 'Independence Day', type: 'Regular', isRecurring: true },
+      { date: '2025-08-21', name: 'Ninoy Aquino Day', type: 'Special', isRecurring: true },
+      { date: '2025-08-25', name: 'National Heroes Day', type: 'Regular', isRecurring: false },
+      { date: '2025-11-01', name: "All Saints' Day", type: 'Special', isRecurring: true },
+      { date: '2025-11-02', name: 'All Souls\' Day', type: 'Special', isRecurring: true },
+      { date: '2025-11-30', name: 'Bonifacio Day', type: 'Regular', isRecurring: true },
+      { date: '2025-12-08', name: 'Feast of the Immaculate Conception', type: 'Special', isRecurring: true },
+      { date: '2025-12-24', name: 'Christmas Eve', type: 'Special', isRecurring: true },
+      { date: '2025-12-25', name: 'Christmas Day', type: 'Regular', isRecurring: true },
+      { date: '2025-12-30', name: 'Rizal Day', type: 'Regular', isRecurring: true },
+      { date: '2025-12-31', name: 'Last Day of the Year', type: 'Special', isRecurring: true }
+    ];
+
+    const allHolidays = holidays2024.concat(holidays2025);
+
+    const existingDocs = db.getDocuments('holidays');
+    const existingDates = new Set();
+
+    for (let i = 0; i < existingDocs.length; i++) {
+      const holiday = existingDocs[i].obj;
+      if (holiday && holiday.date) {
+        existingDates.add(holiday.date);
+      }
+    }
+
+    let createdCount = 0;
+    let skippedCount = 0;
+    const createdHolidays = [];
+
+    allHolidays.forEach(holiday => {
+      if (existingDates.has(holiday.date)) {
+        skippedCount++;
+        return;
+      }
+
+      const holidayId = 'HOL_' + Utilities.getUuid();
+      const holidayData = {
+        holidayId: holidayId,
+        date: holiday.date,
+        name: holiday.name,
+        type: holiday.type,
+        isRecurring: holiday.isRecurring || false,
+        createdAt: new Date().toISOString(),
+        createdBy: Session.getActiveUser().getEmail()
+      };
+
+      db.createDocument('holidays/' + holidayId, holidayData);
+
+      createdCount++;
+      createdHolidays.push(`${holiday.date} - ${holiday.name}`);
+      existingDates.add(holiday.date);
+    });
+
+    return {
+      success: true,
+      totalDefined: allHolidays.length,
+      createdCount: createdCount,
+      skippedCount: skippedCount,
+      createdHolidays: createdHolidays
+    };
+
   } catch (error) {
     return {
       success: false,

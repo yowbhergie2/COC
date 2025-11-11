@@ -765,6 +765,7 @@
                 <option value="10">November</option>
                 <option value="11">December</option>
               </select>
+              <div class="form-text text-muted d-none" id="ot-month-status"></div>
             </div>
             <div class="col-md-4 mb-3">
               <label class="form-label"><strong>Year</strong> <span class="text-danger">*</span></label>
@@ -3398,8 +3399,8 @@
       row.id = `ot-row-${rowId}`;
       row.innerHTML = `
         <td>
-          <input type="date" class="form-control form-control-sm" id="ot-date-${rowId}"
-                 onchange="onOvertimeDateChange(${rowId})" required>
+          <input type="number" class="form-control form-control-sm" id="ot-date-${rowId}" min="1" max="31"
+                 placeholder="Day" inputmode="numeric" onchange="onOvertimeDateChange(${rowId})" required>
         </td>
         <td>
           <span class="badge bg-secondary" id="ot-daytype-${rowId}">-</span>
@@ -3441,6 +3442,7 @@
       overtimeEntries.push({
         rowId: rowId,
         date: null,
+        displayDate: null,
         dayType: null,
         amIn: null,
         amOut: null,
@@ -3463,77 +3465,181 @@
       updateOvertimeProgress();
     };
 
+    function formatISODateForDisplay(isoDate) {
+      if (!isoDate) return '';
+      const parts = isoDate.split('-').map(Number);
+      if (parts.length !== 3) return isoDate;
+      const [year, month, day] = parts;
+      const date = new Date(year, month - 1, day);
+      if (Number.isNaN(date.getTime())) return isoDate;
+      return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    }
+
+    function resetOvertimeEntryDate(entry, rowId) {
+      if (!entry) return;
+
+      entry.date = null;
+      entry.displayDate = null;
+      entry.dayType = null;
+      entry.isHoliday = false;
+      entry.holidayName = '';
+      entry.hoursWorked = 0;
+      entry.cocEarned = 0;
+      entry.error = null;
+
+      const badge = document.getElementById(`ot-daytype-${rowId}`);
+      if (badge) {
+        badge.textContent = '-';
+        badge.className = 'badge bg-secondary';
+      }
+
+      const hoursField = document.getElementById(`ot-hours-worked-${rowId}`);
+      if (hoursField) hoursField.value = '';
+      const cocField = document.getElementById(`ot-coc-earned-${rowId}`);
+      if (cocField) cocField.value = '';
+    }
+
+    function formatOvertimeEntryLabel(entry) {
+      if (!entry) return 'selected day';
+      if (entry.displayDate) return entry.displayDate;
+      if (entry.date) return formatISODateForDisplay(entry.date);
+      return 'selected day';
+    }
+
     // On date change - auto-detect day type
     window.onOvertimeDateChange = async function(rowId) {
       const dateInput = document.getElementById(`ot-date-${rowId}`);
-      const dateValue = dateInput.value;
+      const entry = overtimeEntries.find(e => e.rowId === rowId);
+      if (!dateInput || !entry) return;
 
-      if (!dateValue) return;
+      const rawValue = dateInput.value;
 
-      const selectedDate = new Date(dateValue);
-      const selectedMonth = parseInt(document.getElementById('ot-month').value);
-      const selectedYear = parseInt(document.getElementById('ot-year').value);
-
-      // Validate date is in selected month/year
-      if (selectedDate.getMonth() !== selectedMonth || selectedDate.getFullYear() !== selectedYear) {
-        Modal.error('Invalid Date', 'Date must be within the selected month and year.');
-        dateInput.value = '';
+      if (!rawValue) {
+        resetOvertimeEntryDate(entry, rowId);
+        calculateOvertimeGrandTotal();
+        updateOvertimeProgress();
         return;
       }
 
-      // Validate no future dates
+      const day = parseInt(rawValue, 10);
+      if (Number.isNaN(day)) {
+        Modal.error('Invalid Day', 'Please enter a valid day number (1-31).');
+        dateInput.value = '';
+        resetOvertimeEntryDate(entry, rowId);
+        calculateOvertimeGrandTotal();
+        updateOvertimeProgress();
+        return;
+      }
+
+      const monthValue = document.getElementById('ot-month').value;
+      const yearValue = document.getElementById('ot-year').value;
+
+      if (monthValue === '' || !yearValue) {
+        Modal.error('Incomplete Selection', 'Please select the overtime month and year first.');
+        dateInput.value = '';
+        resetOvertimeEntryDate(entry, rowId);
+        calculateOvertimeGrandTotal();
+        updateOvertimeProgress();
+        return;
+      }
+
+      const selectedMonth = parseInt(monthValue, 10);
+      const selectedYear = parseInt(yearValue, 10);
+
+      if (Number.isNaN(selectedMonth) || Number.isNaN(selectedYear)) {
+        Modal.error('Invalid Selection', 'Selected month or year is invalid.');
+        dateInput.value = '';
+        resetOvertimeEntryDate(entry, rowId);
+        calculateOvertimeGrandTotal();
+        updateOvertimeProgress();
+        return;
+      }
+
+      const candidateDate = new Date(selectedYear, selectedMonth, day);
+      if (candidateDate.getMonth() !== selectedMonth || candidateDate.getFullYear() !== selectedYear || candidateDate.getDate() !== day) {
+        Modal.error('Invalid Day', 'The entered day is not valid for the selected month.');
+        dateInput.value = '';
+        resetOvertimeEntryDate(entry, rowId);
+        calculateOvertimeGrandTotal();
+        updateOvertimeProgress();
+        return;
+      }
+
+      const isoDate = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      if (selectedDate > today) {
+      const comparisonDate = new Date(candidateDate);
+      comparisonDate.setHours(0, 0, 0, 0);
+      if (comparisonDate > today) {
         Modal.error('Invalid Date', 'Future dates are not allowed.');
         dateInput.value = '';
+        resetOvertimeEntryDate(entry, rowId);
+        calculateOvertimeGrandTotal();
+        updateOvertimeProgress();
         return;
       }
 
-      // Check for duplicates
-      const duplicateCount = overtimeEntries.filter(entry =>
-        entry.date === dateValue && entry.rowId !== rowId
-      ).length;
-
+      const duplicateCount = overtimeEntries.filter(item => item.rowId !== rowId && item.date === isoDate).length;
       if (duplicateCount > 0) {
-        Modal.error('Duplicate Date', 'This date has already been entered.');
+        Modal.error('Duplicate Date', 'This day has already been entered for the selected month.');
         dateInput.value = '';
+        resetOvertimeEntryDate(entry, rowId);
+        calculateOvertimeGrandTotal();
+        updateOvertimeProgress();
         return;
       }
 
-      // Auto-detect day type
+      entry.date = isoDate;
+      entry.displayDate = formatISODateForDisplay(isoDate);
+
+      let resolvedDayType = 'weekday';
+      let isHoliday = false;
+      let holidayName = '';
+
+      const badge = document.getElementById(`ot-daytype-${rowId}`);
+
       try {
         const dayTypeResult = await new Promise((resolve, reject) => {
           google.script.run
             .withSuccessHandler(resolve)
             .withFailureHandler(reject)
-            .getDayType_SERVER(dateValue);
+            .getDayType_SERVER(isoDate);
         });
 
-        const badge = document.getElementById(`ot-daytype-${rowId}`);
+        if (badge) {
+          if (dayTypeResult.isHoliday) {
+            badge.textContent = `Holiday (${dayTypeResult.holidayName})`;
+            badge.className = 'badge bg-danger';
+          } else if (dayTypeResult.isWeekend) {
+            badge.textContent = 'Weekend';
+            badge.className = 'badge bg-warning text-dark';
+          } else {
+            badge.textContent = 'Weekday';
+            badge.className = 'badge bg-primary';
+          }
+        }
+
         if (dayTypeResult.isHoliday) {
-          badge.textContent = `Holiday (${dayTypeResult.holidayName})`;
-          badge.className = 'badge bg-danger';
+          resolvedDayType = 'holiday';
+          isHoliday = true;
+          holidayName = dayTypeResult.holidayName || '';
         } else if (dayTypeResult.isWeekend) {
-          badge.textContent = 'Weekend';
-          badge.className = 'badge bg-warning text-dark';
-        } else {
+          resolvedDayType = 'weekend';
+        }
+      } catch (error) {
+        console.error('Error detecting day type:', error);
+        if (badge) {
           badge.textContent = 'Weekday';
           badge.className = 'badge bg-primary';
         }
-
-        // Update entry
-        const entry = overtimeEntries.find(e => e.rowId === rowId);
-        if (entry) {
-          entry.date = dateValue;
-          entry.dayType = dayTypeResult.isHoliday || dayTypeResult.isWeekend ? 'weekend' : 'weekday';
-          entry.isHoliday = dayTypeResult.isHoliday;
-          entry.holidayName = dayTypeResult.holidayName;
-        }
-
-      } catch (error) {
-        console.error('Error detecting day type:', error);
       }
+
+      entry.dayType = resolvedDayType;
+      entry.isHoliday = isHoliday;
+      entry.holidayName = holidayName;
+
+      calculateOvertimeRow(rowId);
     };
 
     // Calculate overtime for a single row
@@ -3612,7 +3718,7 @@
         entry.error = null;
 
         // Calculate hours worked and COC earned
-        const result = calculateOvertimeHours(entry.dayType, amIn, amOut, pmIn, pmOut);
+        const result = calculateOvertimeHours(entry.dayType || 'weekday', amIn, amOut, pmIn, pmOut);
         entry.hoursWorked = result.hoursWorked;
         entry.cocEarned = result.cocEarned;
       }
@@ -3721,12 +3827,15 @@
           Modal.error('Validation Error', 'All entries must have a date.');
           return;
         }
+
+        const entryLabel = formatOvertimeEntryLabel(entry);
+
         if (!entry.amIn && !entry.amOut && !entry.pmIn && !entry.pmOut) {
-          Modal.error('Validation Error', `Entry for ${entry.date} has no time inputs.`);
+          Modal.error('Validation Error', `Entry for ${entryLabel} has no time inputs.`);
           return;
         }
         if (entry.error) {
-          Modal.error('Validation Error', `Entry for ${entry.date}: ${entry.error}`);
+          Modal.error('Validation Error', `Entry for ${entryLabel}: ${entry.error}`);
           return;
         }
       }
