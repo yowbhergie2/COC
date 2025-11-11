@@ -122,7 +122,14 @@ function initializeHolidays() {
 }
 
 function showAppModal() {
-  const html = HtmlService.createHtmlOutputFromFile('Main')
+  // --- FIX ---
+  // Was: HtmlService.createHtmlOutputFromFile('Main')
+  // This just gets the raw text.
+  //
+  // Now: HtmlService.createTemplateFromFile('Main').evaluate()
+  // This creates a template, processes all the <?!= ... ?> tags,
+  // and returns the final, evaluated HTML.
+  const html = HtmlService.createTemplateFromFile('Main').evaluate()
     .setWidth(1400)
     .setHeight(800);
   SpreadsheetApp.getUi().showModalDialog(html, 'CompTime Tracker');
