@@ -1,0 +1,181 @@
+window.loadUncertifiedLogs = async function() {
+  const employeeId = document.getElementById('cert-employee').value;
+  if (!employeeId) return;
+
+  const db = window.db;
+  const q = query(
+    collection(db, 'overtimeLogs'),
+    where('employeeId', '==', employeeId),
+    where('status', '==', 'Uncertified'),
+    orderBy('overtimeDate', 'desc')
+  );
+
+  onSnapshot(q, (snapshot) => {
+    const tbody = document.getElementById('uncertifiedLogsBody');
+    if (snapshot.empty) {
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center">No uncertified logs</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = snapshot.docs.map(doc => {
+      const log = doc.data();
+      const date = new Date(log.overtimeDate);
+      return `
+        <tr>
+          <td><input type="checkbox" class="log-checkbox" data-logid="${log.logId}" data-hours="${log.earnedHours}" onchange="updateSelectedTotal()"></td>
+          <td>${date.toLocaleDateString('en-US', { timeZone: 'Asia/Manila' })}</td>
+          <td>${log.hoursWorked}</td>
+          <td><span class="badge bg-secondary">${log.dayType}</span></td>
+          <td>${log.multiplier}x</td>
+          <td><strong>${log.earnedHours.toFixed(2)}</strong></td>
+        </tr>
+      `;
+    }).join('');
+  });
+};
+
+window.updateSelectedTotal = function() {
+  const checkboxes = document.querySelectorAll('.log-checkbox:checked');
+  let total = 0;
+  checkboxes.forEach(cb => {
+    total += parseFloat(cb.dataset.hours);
+  });
+  document.getElementById('total-selected-hours').textContent = total.toFixed(2);
+};
+
+window.generateCertificate = async function() {
+  const employeeId = document.getElementById('cert-employee').value;
+  const checkboxes = document.querySelectorAll('.log-checkbox:checked');
+  
+  if (!employeeId || checkboxes.length === 0) {
+    window.Modal.error('Validation Error', 'Please select an employee and at least one overtime log');
+    return;
+  }
+
+  const selectedLogIds = Array.from(checkboxes).map(cb => cb.dataset.logid);
+
+  try {
+    const result = await new Promise((resolve, reject) => {
+      google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .generateCertificate_SERVER({ employeeId, selectedLogIds });
+    });
+
+    if (result.success) {
+      const message = `Certificate ID: ${result.certificateId}\nTotal Hours: ${result.totalEarnedHours.toFixed(2)}`;
+      window.Modal.success('Certificate Generated!', message);
+      document.getElementById('cert-employee').value = '';
+      document.getElementById('uncertifiedLogsBody').innerHTML = '<tr><td colspan="6" class="text-center">Select an employee</td></tr>';
+      document.getElementById('total-selected-hours').textContent = '0.00';
+    } else {
+      window.Modal.error('Error', result.error);
+    }
+  } catch (error) {
+    window.Modal.error('Error', 'Error generating certificate: ' + error);
+  }
+};
+
+window.loadEmployeeLedger = async function() {
+  const employeeId = document.getElementById('ledger-employee').value;
+  if (!employeeId) return;
+
+  const db = window.db;
+  const batchesQ = query(
+    collection(db, 'creditBatches'),
+    where('employeeId', '==', employeeId),
+    where('status', '==', 'Active')
+  );
+
+  onSnapshot(batchesQ, (snapshot) => {
+    let balance = 0;
+    snapshot.forEach(doc => {
+      balance += doc.data().remainingHours;
+    });
+    document.getElementById('ledger-balance').textContent = balance.toFixed(2);
+  });
+
+  const ledgerQ = query(
+    collection(db, 'ledger'),
+    where('employeeId', '==', employeeId),
+    orderBy('transactionDate', 'desc')
+  );
+
+  onSnapshot(ledgerQ, (snapshot) => {
+    const tbody = document.getElementById('ledgerTableBody');
+    if (snapshot.empty) {
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center">No transactions</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = snapshot.docs.map(doc => {
+      const ledger = doc.data();
+      const date = new Date(ledger.transactionDate);
+      const hoursClass = ledger.hoursChange >= 0 ? 'text-success' : 'text-danger';
+      return `
+        <tr>
+          <td>${date.toLocaleDateString('en-US', { timeZone: 'Asia/Manila' })}</td>
+          <td><span class="badge bg-info">${ledger.transactionType}</span></td>
+          <td>${ledger.referenceId}</td>
+          <td class="${hoursClass}"><strong>${ledger.hoursChange >= 0 ? '+' : ''}${ledger.hoursChange.toFixed(2)}</strong></td>
+          <td>${ledger.balanceAfter.toFixed(2)}</td>
+          <td>${ledger.remarks}</td>
+        </tr>
+      `;
+    }).join('');
+  });
+};
+
+window.showCtoBalance = async function() {
+  const employeeId = document.getElementById('cto-employee').value;
+  if (!employeeId) {
+    document.getElementById('cto-available-balance').textContent = '0.00';
+    return;
+  }
+
+  const db = window.db;
+  const q = query(
+    collection(db, 'creditBatches'),
+    where('employeeId', '==', employeeId),
+    where('status', '==', 'Active')
+  );
+
+  onSnapshot(q, (snapshot) => {
+    let balance = 0;
+    snapshot.forEach(doc => {
+      balance += doc.data().remainingHours;
+    });
+    document.getElementById('cto-available-balance').textContent = balance.toFixed(2);
+  });
+};
+
+document.getElementById('ctoForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  
+  const data = {
+    employeeId: document.getElementById('cto-employee').value,
+    ctoDate: document.getElementById('cto-date').value,
+    hoursUsed: document.getElementById('cto-hours').value,
+    remarks: document.getElementById('cto-remarks').value
+  };
+
+  try {
+    const result = await new Promise((resolve, reject) => {
+      google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .logCto_SERVER(data);
+    });
+
+    if (result.success) {
+      const message = `Hours Used: ${result.hoursUsed}\nNew Balance: ${result.newBalance.toFixed(2)} hours`;
+      window.Modal.success('CTO Logged!', message);
+      e.target.reset();
+      document.getElementById('cto-available-balance').textContent = '0.00';
+    } else {
+      window.Modal.error('Error', result.error);
+    }
+  } catch (error) {
+    window.Modal.error('Error', 'Error logging CTO: ' + error);
+  }
+});

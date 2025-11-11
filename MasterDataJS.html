@@ -1,0 +1,862 @@
+function loadHolidays() {
+  const db = window.db;
+  const q = query(collection(db, 'holidays'), orderBy('date', 'desc'));
+  onSnapshot(q, (snapshot) => {
+    const tbody = document.getElementById('holidaysTableBody');
+    if (snapshot.empty) {
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center">No holidays found</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = snapshot.docs.map(doc => {
+      const hol = doc.data();
+      const date = new Date(hol.date);
+      return `
+        <tr>
+          <td>${date.toLocaleDateString('en-US', { timeZone: 'Asia/Manila' })}</td>
+          <td>${hol.name}</td>
+          <td><span class="badge ${hol.type === 'Regular' ? 'bg-danger' : 'bg-warning'}">${hol.type}</span></td>
+          <td>${hol.isRecurring ? 'Yes' : 'No'}</td>
+          <td>
+            <button class="btn btn-sm btn-outline-danger" onclick="deleteHoliday('${doc.id}')">
+              <i class="bi bi-trash"></i>
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  });
+}
+
+function loadConfiguration() {
+  const db = window.db;
+  const configRef = doc(db, 'configuration', 'accrualRules');
+  
+  const unsubscribe = onSnapshot(configRef, 
+    (docSnap) => {
+      if (docSnap.exists()) {
+        const config = docSnap.data();
+        
+        document.getElementById('config-regular').value = config.regularDayMultiplier ?? 1.25;
+        document.getElementById('config-restday').value = config.restDayMultiplier ?? 1.30;
+        document.getElementById('config-holiday').value = config.holidayMultiplier ?? 2.00;
+        document.getElementById('config-monthly-cap').value = config.monthlyAccrualCap ?? 40;
+        document.getElementById('config-total-cap').value = config.totalBalanceCap ?? 120;
+        document.getElementById('config-expiry-months').value = config.expiryMonths ?? 12;
+      }
+    }
+  );
+  
+  window.unsubscribers.push(unsubscribe);
+}
+
+function loadLibraries() {
+  const db = window.db;
+  ['offices', 'positions'].forEach(libType => {
+    const q = query(collection(db, 'libraries', libType, 'items'), orderBy('name'));
+    onSnapshot(q, (snapshot) => {
+      window.librariesData[libType] = [];
+      snapshot.forEach((doc) => {
+        window.librariesData[libType].push({ id: doc.id, ...doc.data() });
+      });
+
+      if (libType === 'offices') {
+        window.renderLibraryTable(libType);
+      }
+      populateLibraryDropdowns(libType, snapshot.docs);
+    });
+  });
+}
+
+window.renderLibraryTable = function(libType) {
+  const container = document.getElementById(`${libType}-list`);
+  let items = window.librariesData[libType];
+
+  if (window.librarySearchTerms[libType]) {
+    items = items.filter(item => {
+      const searchLower = window.librarySearchTerms[libType].toLowerCase();
+      return item.name.toLowerCase().includes(searchLower);
+    });
+  }
+
+  if (items.length === 0) {
+    const message = window.librarySearchTerms[libType] ? 'No items match your search' : 'No items found';
+    container.innerHTML = `<tr><td colspan="2" class="text-center text-muted">${message}</td></tr>`;
+    return;
+  }
+
+  container.innerHTML = items.map(item => {
+    return `
+      <tr>
+        <td>${item.name}</td>
+        <td>
+          <button class="btn btn-sm btn-outline-primary me-1" onclick="editLibraryItem('${libType}', '${item.id}', '${item.name}')">
+            <i class="bi bi-pencil"></i>
+          </button>
+          <button class="btn btn-sm btn-outline-danger" onclick="deleteLibraryItem('${libType}', '${item.id}', '${item.name}')">
+            <i class="bi bi-trash"></i>
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+};
+
+window.filterLibrary = function(type) {
+  const searchInput = document.getElementById(`search-${type}`);
+  const clearBtn = document.getElementById(`clear-${type}-search`);
+
+  window.librarySearchTerms[type] = searchInput.value;
+
+  if (searchInput.value) {
+    clearBtn.classList.add('visible');
+  } else {
+    clearBtn.classList.remove('visible');
+  }
+
+  window.renderLibraryTable(type);
+};
+
+window.clearLibrarySearch = function(type) {
+  const searchInput = document.getElementById(`search-${type}`);
+  const clearBtn = document.getElementById(`clear-${type}-search`);
+
+  searchInput.value = '';
+  window.librarySearchTerms[type] = '';
+  clearBtn.classList.remove('visible');
+
+  window.renderLibraryTable(type);
+};
+
+function populateLibraryDropdowns(libType, docs) {
+  const selectId = libType === 'offices' ? 'emp-office' : 'emp-position';
+  const select = document.getElementById(selectId);
+  select.innerHTML = '<option value="">Select</option>';
+  docs.forEach(doc => {
+    const item = doc.data();
+    select.innerHTML += `<option value="${item.name}">${item.name}</option>`;
+  });
+}
+
+window.resetHolidayForm = function() {
+  document.getElementById('holidayForm').reset();
+};
+
+window.saveHoliday = async function() {
+  const form = document.getElementById('holidayForm');
+  if (!form.checkValidity()) {
+    form.reportValidity();
+    return;
+  }
+
+  const data = {
+    date: document.getElementById('hol-date').value,
+    name: document.getElementById('hol-name').value,
+    type: document.getElementById('hol-type').value,
+    isRecurring: document.getElementById('hol-recurring').checked
+  };
+
+  try {
+    const result = await new Promise((resolve, reject) => {
+      google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .addHoliday_SERVER(data);
+    });
+
+    if (result.success) {
+      window.Modal.success('Success!', 'Holiday added successfully!');
+      bootstrap.Modal.getInstance(document.getElementById('holidayModal')).hide();
+      form.reset();
+    } else {
+      window.Modal.error('Error', result.error);
+    }
+  } catch (error) {
+    window.Modal.error('Error', 'Error adding holiday: ' + error);
+  }
+};
+
+window.deleteHoliday = async function(holidayId) {
+  window.Modal.confirm(
+    'Delete Holiday',
+    'Are you sure you want to delete this holiday? This action cannot be undone.',
+    async function() {
+      try {
+        const result = await new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(reject)
+            .deleteHoliday_SERVER(holidayId);
+        });
+
+        if (result.success) {
+          window.Modal.success('Success!', 'Holiday deleted successfully!');
+        } else {
+          window.Modal.error('Error', result.error);
+        }
+      } catch (error) {
+        window.Modal.error('Error', 'Error deleting holiday: ' + error);
+      }
+    }
+  );
+};
+
+document.getElementById('configForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  
+  const data = {
+    regularDayMultiplier: parseFloat(document.getElementById('config-regular').value),
+    restDayMultiplier: parseFloat(document.getElementById('config-restday').value),
+    holidayMultiplier: parseFloat(document.getElementById('config-holiday').value),
+    monthlyAccrualCap: parseInt(document.getElementById('config-monthly-cap').value),
+    totalBalanceCap: parseInt(document.getElementById('config-total-cap').value),
+    expiryMonths: parseInt(document.getElementById('config-expiry-months').value)
+  };
+
+  try {
+    const result = await new Promise((resolve, reject) => {
+      google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .saveConfiguration_SERVER(data);
+    });
+
+    if (result.success) {
+      window.Modal.success('Success!', 'Configuration saved successfully!');
+    } else {
+      window.Modal.error('Error', result.error);
+    }
+  } catch (error) {
+    window.Modal.error('Error', 'Error saving configuration: ' + error);
+  }
+});
+
+window.showAddLibraryModal = function(type) {
+  document.getElementById('lib-item-id').value = '';
+  document.getElementById('lib-type').value = type;
+  document.getElementById('lib-name').value = '';
+  
+  const typeName = type === 'offices' ? 'Office' : 'Position';
+  document.getElementById('libraryModalTitle').textContent = `Add ${typeName}`;
+  document.getElementById('libraryItemLabel').textContent = `${typeName} Name`;
+  
+  new bootstrap.Modal(document.getElementById('libraryModal')).show();
+};
+
+window.editLibraryItem = function(type, itemId, currentName) {
+  document.getElementById('lib-item-id').value = itemId;
+  document.getElementById('lib-type').value = type;
+  document.getElementById('lib-name').value = currentName;
+  
+  const typeName = type === 'offices' ? 'Office' : 'Position';
+  document.getElementById('libraryModalTitle').textContent = `Edit ${typeName}`;
+  document.getElementById('libraryItemLabel').textContent = `${typeName} Name`;
+  
+  new bootstrap.Modal(document.getElementById('libraryModal')).show();
+};
+
+window.saveLibraryItem = async function() {
+  const form = document.getElementById('libraryForm');
+  if (!form.checkValidity()) {
+    form.reportValidity();
+    return;
+  }
+
+  const itemId = document.getElementById('lib-item-id').value;
+  const type = document.getElementById('lib-type').value;
+  const name = document.getElementById('lib-name').value;
+
+  try {
+    const isUpdate = itemId !== '';
+    const result = await new Promise((resolve, reject) => {
+      if (isUpdate) {
+        google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(reject)
+          .updateLibraryItem_SERVER(type, itemId, { name });
+      } else {
+        google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(reject)
+          .addLibraryItem_SERVER(type, { name });
+      }
+    });
+
+    if (result.success) {
+      const title = isUpdate ? 'Item Updated!' : 'Item Added!';
+      window.Modal.success(title, isUpdate ? 'Item updated successfully!' : 'Item added successfully!');
+      bootstrap.Modal.getInstance(document.getElementById('libraryModal')).hide();
+      form.reset();
+    } else {
+      window.Modal.error('Error', result.error);
+    }
+  } catch (error) {
+    window.Modal.error('Error', 'Error saving item: ' + error);
+  }
+};
+
+window.deleteLibraryItem = async function(type, itemId, itemName) {
+  window.Modal.confirm(
+    'Delete Item',
+    `Are you sure you want to delete "${itemName}"? This action cannot be undone.`,
+    async function() {
+      try {
+        const result = await new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(reject)
+            .deleteLibraryItem_SERVER(type, itemId);
+        });
+
+        if (result.success) {
+          window.Modal.success('Success!', 'Item deleted successfully!');
+        } else {
+          window.Modal.error('Error', result.error);
+        }
+      } catch (error) {
+        window.Modal.error('Error', 'Error deleting item: ' + error);
+      }
+    }
+  );
+};
+
+let selectedHistoricalEmployee = null;
+let historicalBalancesData = [];
+
+window.filterHistoricalEmployeeFilter = function() {
+  const searchInput = document.getElementById('hist-employee-filter-search');
+  const dropdown = document.getElementById('hist-employee-filter-list');
+  const searchTerm = searchInput.value.toLowerCase().trim();
+
+  const activeEmployees = window.employeesData.filter(emp => emp.isActive);
+  let filteredEmployees = activeEmployees;
+
+  if (searchTerm) {
+    filteredEmployees = activeEmployees.filter(emp => {
+      const fullName = `${emp.firstName} ${emp.lastName}`.toLowerCase();
+      const reverseName = `${emp.lastName} ${emp.firstName}`.toLowerCase();
+      const employeeId = emp.employeeId.toLowerCase();
+      return fullName.includes(searchTerm) ||
+             reverseName.includes(searchTerm) ||
+             employeeId.includes(searchTerm);
+    });
+  }
+
+  if (filteredEmployees.length === 0) {
+    dropdown.innerHTML = '<div class="dropdown-no-results">No employees found</div>';
+  } else {
+    dropdown.innerHTML = filteredEmployees.map(emp => `
+      <div class="dropdown-item-custom" onclick="selectHistoricalEmployeeFilter('${emp.employeeId}', '${emp.lastName}, ${emp.firstName}')">
+        <span class="employee-name">${emp.lastName}, ${emp.firstName}</span>
+        <span class="employee-details">${emp.employeeId} • ${emp.office} • ${emp.position}</span>
+      </div>
+    `).join('');
+  }
+
+  showHistoricalEmployeeFilterDropdown();
+};
+
+window.showHistoricalEmployeeFilterDropdown = function() {
+  const dropdown = document.getElementById('hist-employee-filter-dropdown');
+  if (dropdown) dropdown.style.display = 'block';
+};
+
+window.hideHistoricalEmployeeFilterDropdown = function() {
+  const dropdown = document.getElementById('hist-employee-filter-dropdown');
+  if (dropdown) dropdown.style.display = 'none';
+};
+
+window.selectHistoricalEmployeeFilter = function(employeeId, name) {
+  const searchInput = document.getElementById('hist-employee-filter-search');
+  const hiddenInput = document.getElementById('hist-employee-filter');
+
+  searchInput.value = `${name} (${employeeId})`;
+  hiddenInput.value = employeeId;
+  selectedHistoricalEmployee = employeeId;
+
+  hideHistoricalEmployeeFilterDropdown();
+
+  document.getElementById('hist-content-section').style.display = 'block';
+  document.getElementById('hist-employee-name').value = `${name} (${employeeId})`;
+  document.getElementById('hist-employee').value = employeeId;
+
+  const addTab = document.getElementById('tab-add-hist');
+  if (addTab) {
+    addTab.click();
+  }
+
+  loadHistoricalBalances();
+  checkEmployeeHasOvertimeLogs(employeeId);
+};
+
+async function checkEmployeeHasOvertimeLogs(employeeId) {
+  try {
+    const result = await new Promise((resolve, reject) => {
+      google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .checkEmployeeHasOvertimeLogs_SERVER(employeeId);
+    });
+
+    if (result.hasLogs) {
+      document.getElementById('hist-month-year').disabled = true;
+      document.getElementById('hist-date-issuance').disabled = true;
+      document.getElementById('hist-coc-earned').disabled = true;
+      document.getElementById('hist-coc-used').disabled = true;
+      document.getElementById('hist-submit-btn').disabled = true;
+
+      const warningHTML = `
+        <div class="alert alert-warning">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+          <strong>Historical Balance Locked:</strong> This employee has already logged overtime.
+          Historical balance cannot be added or modified to prevent data inconsistency.
+        </div>
+      `;
+      const formCard = document.querySelector('#content-add-hist .card-body');
+      if (formCard && !formCard.querySelector('.alert-warning')) {
+        formCard.insertAdjacentHTML('afterbegin', warningHTML);
+      }
+    } else {
+      document.getElementById('hist-month-year').disabled = false;
+      document.getElementById('hist-coc-earned').disabled = false;
+      document.getElementById('hist-coc-used').disabled = false;
+      document.getElementById('hist-submit-btn').disabled = false;
+
+      const warning = document.querySelector('#content-add-hist .alert-warning');
+      if (warning) warning.remove();
+    }
+
+    return result.hasLogs;
+  } catch (error) {
+    console.error('Error checking overtime logs:', error);
+    return false;
+  }
+}
+
+function loadHistoricalBalances() {
+  if (!selectedHistoricalEmployee) {
+    const tbody = document.getElementById('historicalBalancesTableBody');
+    tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">Select an employee above to view their historical balances</td></tr>`;
+    return;
+  }
+
+  const db = window.db;
+  const q = query(
+    collection(db, 'creditBatches'),
+    where('employeeId', '==', selectedHistoricalEmployee)
+  );
+
+  const unsubscribe = onSnapshot(q,
+    async (snapshot) => {
+      historicalBalancesData = [];
+
+      for (const docSnapshot of snapshot.docs) {
+        const batch = docSnapshot.data();
+
+        if (batch.source === 'Historical') {
+          historicalBalancesData.push({
+            id: docSnapshot.id,
+            ...batch
+          });
+        }
+      }
+
+      historicalBalancesData.sort((a, b) => {
+        if (a.monthYear && b.monthYear) {
+          return b.monthYear.localeCompare(a.monthYear);
+        }
+        return 0;
+      });
+
+      renderHistoricalBalancesTable();
+    }
+  );
+
+  window.unsubscribers.push(unsubscribe);
+}
+
+function renderHistoricalBalancesTable() {
+  const tbody = document.getElementById('historicalBalancesTableBody');
+
+  if (historicalBalancesData.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">No historical balances found for this employee</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = historicalBalancesData.map(batch => {
+    const convertDate = (dateField) => {
+      if (!dateField) return '-';
+      if (dateField.toDate) return dateField.toDate();
+      if (typeof dateField === 'string') return new Date(dateField);
+      if (dateField instanceof Date) return dateField;
+      return new Date(dateField);
+    };
+
+    const issuanceDate = convertDate(batch.dateOfIssuance);
+    const expiryDate = convertDate(batch.expiryDate);
+
+    const issuedDate = issuanceDate !== '-' ? issuanceDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '-';
+    const validUntilDate = expiryDate !== '-' ? expiryDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '-';
+
+    const monthYear = batch.monthYear || '-';
+
+    let actualStatus = batch.status;
+    let statusBadge = '';
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (batch.remainingHours === 0 || batch.remainingHours === undefined) {
+      actualStatus = 'Used';
+    } else if (batch.remainingHours > 0) {
+      if (expiryDate !== '-') {
+        const expiry = new Date(expiryDate);
+        expiry.setHours(0, 0, 0, 0);
+
+        if (today > expiry) {
+          actualStatus = 'Expired';
+        } else {
+          actualStatus = 'Active';
+        }
+      } else {
+        actualStatus = 'Active';
+      }
+    }
+
+    if (actualStatus === 'Active') {
+      statusBadge = '<span class="badge bg-success">Active</span>';
+    } else if (actualStatus === 'Used') {
+      statusBadge = '<span class="badge bg-secondary">Used</span>';
+    } else if (actualStatus === 'Expired') {
+      statusBadge = '<span class="badge bg-danger">Expired</span>';
+    }
+
+    return `
+      <tr>
+        <td>${monthYear}</td>
+        <td>${batch.initialHours ? batch.initialHours.toFixed(1) : '0.0'}</td>
+        <td>${batch.usedHours ? batch.usedHours.toFixed(1) : '0.0'}</td>
+        <td><strong>${batch.remainingHours ? batch.remainingHours.toFixed(1) : '0.0'}</strong></td>
+        <td>${issuedDate}</td>
+        <td>${validUntilDate}</td>
+        <td>${statusBadge}</td>
+        <td>
+          <button class="btn btn-sm btn-outline-primary me-1" onclick="editHistoricalBalance('${batch.id}')" title="Edit">
+            <i class="bi bi-pencil"></i>
+          </button>
+          <button class="btn btn-sm btn-outline-danger" onclick="deleteHistoricalBalance('${batch.id}')" title="Delete">
+            <i class="bi bi-trash"></i>
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+window.deleteHistoricalBalance = async function(batchId) {
+  window.Modal.confirm(
+    'Delete Historical Balance',
+    'Are you sure you want to delete this historical balance entry? This action cannot be undone.',
+    async function() {
+      try {
+        const result = await new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(reject)
+            .deleteHistoricalBalance_SERVER(batchId);
+        });
+
+        if (result.success) {
+          window.Modal.success('Success!', 'Historical balance deleted successfully!');
+        } else {
+          window.Modal.error('Error', result.error);
+        }
+      } catch (error) {
+        window.Modal.error('Error', 'Error deleting historical balance: ' + error);
+      }
+    }
+  );
+};
+
+window.editHistoricalBalance = function(batchId) {
+  const batch = historicalBalancesData.find(b => b.id === batchId);
+  if (!batch) {
+    window.Modal.error('Error', 'Historical balance not found');
+    return;
+  }
+
+  document.getElementById('hist-batch-id').value = batchId;
+  document.getElementById('hist-is-edit').value = 'true';
+  document.getElementById('hist-month-year').value = batch.monthYear;
+  document.getElementById('hist-coc-earned').value = batch.initialHours || batch.earnedHours;
+  document.getElementById('hist-coc-used').value = batch.usedHours || 0;
+
+  enableDateOfIssuance();
+  const issuanceDate = batch.dateOfIssuance || batch.issueDate;
+  if (issuanceDate) {
+    const date = new Date(issuanceDate);
+    const formatDate = (d) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+    document.getElementById('hist-date-issuance').value = formatDate(date);
+  }
+
+  validateHistoricalFields();
+
+  document.getElementById('hist-submit-text').textContent = 'Update';
+  document.getElementById('hist-cancel-btn').classList.remove('d-none');
+
+  document.getElementById('tab-add-hist').click();
+
+  document.getElementById('content-add-hist').scrollIntoView({ behavior: 'smooth' });
+};
+
+window.cancelEditHistoricalBalance = function() {
+  resetHistoricalForm();
+  document.getElementById('tab-list-hist').click();
+};
+
+window.resetHistoricalForm = function() {
+  const form = document.getElementById('historicalForm');
+  const employeeName = document.getElementById('hist-employee-name').value;
+  const employeeId = document.getElementById('hist-employee').value;
+
+  form.reset();
+  form.classList.remove('was-validated');
+
+  document.getElementById('hist-batch-id').value = '';
+  document.getElementById('hist-is-edit').value = 'false';
+
+  document.getElementById('hist-employee-name').value = employeeName;
+  document.getElementById('hist-employee').value = employeeId;
+
+  document.getElementById('hist-date-issuance').disabled = true;
+  document.getElementById('hist-date-issuance').value = '';
+
+  document.getElementById('hist-coc-earned').classList.remove('is-invalid');
+  document.getElementById('hist-coc-used').classList.remove('is-invalid');
+
+  calculateHistoricalRemaining();
+
+  document.getElementById('hist-submit-text').textContent = 'Migrate';
+  document.getElementById('hist-cancel-btn').classList.add('d-none');
+};
+
+window.enableDateOfIssuance = function() {
+  const monthYear = document.getElementById('hist-month-year').value;
+  const dateIssuance = document.getElementById('hist-date-issuance');
+
+  if (monthYear) {
+    dateIssuance.disabled = false;
+
+    const [year, month] = monthYear.split('-');
+    const earnedYear = parseInt(year);
+    const earnedMonth = parseInt(month);
+
+    const formatDate = (date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
+    const lastDayOfEarnedMonth = new Date(earnedYear, earnedMonth, 0);
+    const minDate = formatDate(lastDayOfEarnedMonth);
+
+    const lastDayOfNextMonth = new Date(earnedYear, earnedMonth + 1, 0);
+    const maxDate = formatDate(lastDayOfNextMonth);
+
+    const firstDayOfNextMonth = new Date(earnedYear, earnedMonth, 1);
+    const defaultDate = formatDate(firstDayOfNextMonth);
+
+    dateIssuance.min = minDate;
+    dateIssuance.max = maxDate;
+
+    dateIssuance.value = defaultDate;
+  } else {
+    dateIssuance.disabled = true;
+    dateIssuance.value = '';
+  }
+
+  validateHistoricalFields();
+};
+
+window.validateHistoricalFields = function() {
+  const earnedInput = document.getElementById('hist-coc-earned');
+  const usedInput = document.getElementById('hist-coc-used');
+  const earnedValue = parseFloat(earnedInput.value) || 0;
+  const usedValue = parseFloat(usedInput.value) || 0;
+
+  if (earnedValue > 40) {
+    earnedInput.classList.add('is-invalid');
+    document.getElementById('hist-earned-feedback').textContent = 'Cannot exceed 40 hours per month';
+  } else if (earnedValue < 0) {
+    earnedInput.classList.add('is-invalid');
+    document.getElementById('hist-earned-feedback').textContent = 'Must be a positive number';
+  } else {
+    earnedInput.classList.remove('is-invalid');
+  }
+
+  if (usedValue > earnedValue) {
+    usedInput.classList.add('is-invalid');
+    document.getElementById('hist-used-feedback').textContent = 'Cannot exceed COC Earned';
+  } else if (usedValue > 0 && usedValue % 4 !== 0) {
+    usedInput.classList.add('is-invalid');
+    document.getElementById('hist-used-feedback').textContent = 'Must be in blocks of 4 hours (4, 8, 12, 16, etc.)';
+  } else if (usedValue < 0) {
+    usedInput.classList.add('is-invalid');
+    document.getElementById('hist-used-feedback').textContent = 'Must be a positive number';
+  } else {
+    usedInput.classList.remove('is-invalid');
+  }
+
+  calculateHistoricalRemaining();
+};
+
+window.calculateHistoricalRemaining = function() {
+  const earned = parseFloat(document.getElementById('hist-coc-earned').value) || 0;
+  const used = parseFloat(document.getElementById('hist-coc-used').value) || 0;
+  const dateIssuance = document.getElementById('hist-date-issuance').value;
+
+  const remaining = earned - used;
+  document.getElementById('hist-remaining').value = remaining >= 0 ? remaining.toFixed(2) + ' hours' : 'Invalid';
+
+  let validUntil = null;
+  if (dateIssuance) {
+    const issuanceDate = new Date(dateIssuance);
+    validUntil = new Date(issuanceDate);
+    validUntil.setFullYear(validUntil.getFullYear() + 1);
+    validUntil.setDate(validUntil.getDate() - 1);
+
+    const options = { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Manila' };
+    document.getElementById('hist-valid-until').value = validUntil.toLocaleDateString('en-US', options);
+  } else {
+    document.getElementById('hist-valid-until').value = '';
+  }
+
+  let status;
+  if (remaining < 0) {
+    status = 'Invalid';
+  } else if (remaining === 0) {
+    status = 'Used';
+  } else {
+    if (validUntil) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const expiry = new Date(validUntil);
+      expiry.setHours(0, 0, 0, 0);
+
+      if (today > expiry) {
+        status = 'Expired';
+      } else {
+        status = 'Active';
+      }
+    } else {
+      status = 'Active';
+    }
+  }
+
+  document.getElementById('hist-status').value = status;
+};
+
+document.getElementById('hist-date-issuance').addEventListener('change', calculateHistoricalRemaining);
+
+document.getElementById('historicalForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const form = e.target;
+  const submitBtn = document.getElementById('hist-submit-btn');
+  const btnText = submitBtn.querySelector('.btn-text');
+  const spinner = submitBtn.querySelector('.spinner-border');
+
+  form.classList.add('was-validated');
+
+  if (!form.checkValidity()) {
+    return;
+  }
+
+  const cocEarned = parseFloat(document.getElementById('hist-coc-earned').value);
+  const cocUsed = parseFloat(document.getElementById('hist-coc-used').value) || 0;
+
+  if (cocUsed > cocEarned) {
+    window.Modal.error('Validation Error', 'COC Used cannot exceed COC Earned');
+    return;
+  }
+
+  if (cocUsed > 0 && cocUsed % 4 !== 0) {
+    window.Modal.error('Validation Error', 'COC Used must be in blocks of 4 hours (4, 8, 12, 16, etc.)');
+    return;
+  }
+
+  const isEdit = document.getElementById('hist-is-edit').value === 'true';
+  const batchId = document.getElementById('hist-batch-id').value;
+
+  const data = {
+    employeeId: document.getElementById('hist-employee').value,
+    monthYear: document.getElementById('hist-month-year').value,
+    cocEarned: cocEarned,
+    cocUsed: cocUsed,
+    dateOfIssuance: document.getElementById('hist-date-issuance').value
+  };
+
+  if (isEdit) {
+    data.batchId = batchId;
+  }
+
+  submitBtn.disabled = true;
+  btnText.classList.add('d-none');
+  spinner.classList.remove('d-none');
+
+  try {
+    const serverFunction = isEdit ? 'updateHistoricalBalance_SERVER' : 'migrateHistoricalBalance_SERVER';
+    const result = await new Promise((resolve, reject) => {
+      google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        [serverFunction](data);
+    });
+
+    if (result.success) {
+      const message = `
+        <div style="text-align: center;">
+          <div class="mb-3">
+            <h4 class="text-primary mb-0">${result.remainingHours} hours</h4>
+            <small class="text-muted">Remaining Balance</small>
+          </div>
+          <div class="d-flex justify-content-around">
+            <div>
+              <strong>Valid Until:</strong><br>
+              ${result.validUntil}
+            </div>
+            <div>
+              <strong>Status:</strong><br>
+              <span class="badge bg-success">${result.status}</span>
+            </div>
+          </div>
+        </div>
+      `;
+      window.Modal.success(isEdit ? 'Historical Balance Updated!' : 'Historical Balance Migrated!', message);
+
+      resetHistoricalForm();
+    } else {
+      window.Modal.error('Migration Error', result.error);
+    }
+  } catch (error) {
+    window.Modal.error('Error', 'Error migrating balance: ' + error);
+  } finally {
+    submitBtn.disabled = false;
+    btnText.classList.remove('d-none');
+    spinner.classList.add('d-none');
+  }
+});
+
+document.addEventListener('click', function(e) {
+  const container = document.querySelector('#hist-employee-filter-search')?.closest('.searchable-select-container');
+  if (container && !container.contains(e.target)) {
+    hideHistoricalEmployeeFilterDropdown();
+  }
+});
+

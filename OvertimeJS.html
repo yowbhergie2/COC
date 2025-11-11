@@ -1,0 +1,811 @@
+let overtimeEntries = [];
+let overtimeRowCounter = 0;
+let overtimeMonthlyTotal = 0;
+let overtimeTotalBalance = 0;
+const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                    'July', 'August', 'September', 'October', 'November', 'December'];
+const historicalBalanceCache = new Map();
+
+(function initializeOvertimeYearDropdown() {
+  const yearSelect = document.getElementById('ot-year');
+  if (!yearSelect) return;
+  const currentYear = new Date().getFullYear();
+  for (let i = 0; i < 3; i++) {
+    const year = currentYear - i;
+    const option = document.createElement('option');
+    option.value = year;
+    option.textContent = year;
+    if (i === 0) option.selected = true;
+    yearSelect.appendChild(option);
+  }
+})();
+
+window.filterOvertimeEmployees = function() {
+  const searchInput = document.getElementById('ot-employee-search');
+  const dropdown = document.getElementById('ot-employee-list');
+  const searchTerm = searchInput.value.toLowerCase().trim();
+
+  const activeEmployees = window.employeesData.filter(emp => emp.isActive);
+  let filteredEmployees = activeEmployees;
+
+  if (searchTerm) {
+    filteredEmployees = activeEmployees.filter(emp => {
+      const fullName = `${emp.firstName} ${emp.lastName}`.toLowerCase();
+      const reverseName = `${emp.lastName} ${emp.firstName}`.toLowerCase();
+      const employeeId = emp.employeeId.toLowerCase();
+      const office = (emp.office || '').toLowerCase();
+      const position = (emp.position || '').toLowerCase();
+
+      return fullName.includes(searchTerm) ||
+             reverseName.includes(searchTerm) ||
+             employeeId.includes(searchTerm) ||
+             office.includes(searchTerm) ||
+             position.includes(searchTerm);
+    });
+  }
+
+  if (filteredEmployees.length === 0) {
+    dropdown.innerHTML = '<div class="dropdown-no-results">No employees found</div>';
+  } else {
+    dropdown.innerHTML = filteredEmployees.map(emp => `
+      <div class="dropdown-item-custom" onclick="selectOvertimeEmployee('${emp.employeeId}', '${emp.lastName}, ${emp.firstName}', '${emp.office}', '${emp.position}')">
+        <span class="employee-name">${emp.lastName}, ${emp.firstName}</span>
+        <span class="employee-details">${emp.employeeId} • ${emp.office} • ${emp.position}</span>
+      </div>
+    `).join('');
+  }
+
+  showOvertimeEmployeeDropdown();
+};
+
+window.showOvertimeEmployeeDropdown = function() {
+  const dropdown = document.getElementById('ot-employee-dropdown');
+  if (dropdown) dropdown.style.display = 'block';
+};
+
+window.hideOvertimeEmployeeDropdown = function() {
+  const dropdown = document.getElementById('ot-employee-dropdown');
+  if (dropdown) dropdown.style.display = 'none';
+};
+
+window.selectOvertimeEmployee = function(employeeId, name) {
+  const searchInput = document.getElementById('ot-employee-search');
+  const hiddenInput = document.getElementById('ot-employee');
+
+  searchInput.value = `${name} (${employeeId})`;
+  hiddenInput.value = employeeId;
+
+  hideOvertimeEmployeeDropdown();
+  updateOvertimeMonthOptions();
+};
+
+document.addEventListener('click', function(event) {
+  const container = document.querySelector('.searchable-select-container');
+  const dropdown = document.getElementById('ot-employee-dropdown');
+
+  if (container && dropdown && !container.contains(event.target)) {
+    hideOvertimeEmployeeDropdown();
+  }
+});
+
+function resetMonthOption(option) {
+  if (option.value === '') return;
+  const monthValue = parseInt(option.value);
+  option.disabled = false;
+  option.textContent = monthNames[monthValue];
+  option.classList.remove('text-muted');
+  delete option.dataset.state;
+}
+
+function applyFutureStates(monthSelect, selectedYear) {
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth();
+
+  Array.from(monthSelect.options).forEach(option => {
+    if (option.value === '') return;
+    const monthValue = parseInt(option.value);
+    const monthName = monthNames[monthValue];
+    const isFuture = (selectedYear > currentYear) || (selectedYear === currentYear && monthValue > currentMonth);
+
+    if (isFuture) {
+      option.disabled = true;
+      option.textContent = `${monthName} (Future)`;
+      option.classList.add('text-muted');
+      option.dataset.state = 'future';
+    } else {
+      option.dataset.state = 'available';
+    }
+  });
+}
+
+function applyHistoricalStates(monthSelect, historicalMonths) {
+  const historicalSet = new Set(historicalMonths);
+  Array.from(monthSelect.options).forEach(option => {
+    if (option.value === '' || option.dataset.state === 'future') return;
+    const monthValue = parseInt(option.value);
+    if (historicalSet.has(monthValue)) {
+      const monthName = monthNames[monthValue];
+      option.disabled = true;
+      option.textContent = `${monthName} (Historical Balance)`;
+      option.classList.add('text-muted');
+      option.dataset.state = 'historical';
+    }
+  });
+}
+
+function ensureValidMonthSelection(monthSelect) {
+  if (!monthSelect) return;
+  const selectedValue = monthSelect.value;
+  if (selectedValue === '') return;
+  const selectedOption = monthSelect.options[monthSelect.selectedIndex];
+  if (!selectedOption || selectedOption.disabled) {
+    monthSelect.value = '';
+  }
+}
+
+window.updateOvertimeMonthOptions = async function() {
+  const employeeId = document.getElementById('ot-employee').value;
+  const yearInput = document.getElementById('ot-year').value;
+  const monthSelect = document.getElementById('ot-month');
+
+  if (!monthSelect) return;
+
+  Array.from(monthSelect.options).forEach(resetMonthOption);
+
+  if (!employeeId || !yearInput) {
+    ensureValidMonthSelection(monthSelect);
+    updateOvertimeContext();
+    return;
+  }
+
+  const year = parseInt(yearInput);
+  applyFutureStates(monthSelect, year);
+  ensureValidMonthSelection(monthSelect);
+
+  const cacheKey = `${employeeId}-${year}`;
+  const cachedMonths = historicalBalanceCache.get(cacheKey);
+  if (cachedMonths) {
+    applyHistoricalStates(monthSelect, cachedMonths);
+    ensureValidMonthSelection(monthSelect);
+    updateOvertimeContext();
+    return;
+  }
+
+  try {
+    const histResult = await new Promise((resolve, reject) => {
+      google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .getHistoricalBalanceMonths_SERVER(employeeId, year);
+    });
+
+    const historicalMonths = Array.isArray(histResult.months) ? histResult.months : [];
+    historicalBalanceCache.set(cacheKey, historicalMonths);
+    applyHistoricalStates(monthSelect, historicalMonths);
+  } catch (error) {
+    console.error('Error updating month options:', error);
+  } finally {
+    ensureValidMonthSelection(monthSelect);
+    updateOvertimeContext();
+  }
+};
+
+window.updateOvertimeContext = async function() {
+  const employeeId = document.getElementById('ot-employee').value;
+  const month = document.getElementById('ot-month').value;
+  const year = document.getElementById('ot-year').value;
+
+  const alertContainer = document.getElementById('ot-alert-container');
+  const loadingContainer = document.getElementById('ot-entry-loading');
+  const tableWrapper = document.getElementById('ot-entry-table-wrapper');
+  const entrySection = document.getElementById('ot-entry-section');
+  const totalSection = document.getElementById('ot-total-section');
+  const submitSection = document.getElementById('ot-submit-section');
+
+  const hideEntryContent = () => {
+    if (loadingContainer) loadingContainer.classList.remove('active');
+    if (tableWrapper) tableWrapper.classList.add('d-none');
+  };
+
+  const toggleEntryLoading = (isLoading) => {
+    if (!loadingContainer || !tableWrapper) return;
+    if (isLoading) {
+      loadingContainer.classList.add('active');
+      tableWrapper.classList.add('d-none');
+    } else {
+      loadingContainer.classList.remove('active');
+      tableWrapper.classList.remove('d-none');
+    }
+  };
+
+  alertContainer.innerHTML = '';
+
+  if (!employeeId || month === '' || !year) {
+    document.getElementById('ot-progress-section').style.display = 'none';
+    if (entrySection) entrySection.style.display = 'none';
+    if (totalSection) totalSection.style.display = 'none';
+    if (submitSection) submitSection.style.display = 'none';
+    hideEntryContent();
+    return;
+  }
+
+  document.getElementById('ot-progress-section').style.display = 'flex';
+  if (entrySection) entrySection.style.display = 'block';
+  if (totalSection) totalSection.style.display = 'none';
+  if (submitSection) submitSection.style.display = 'none';
+  toggleEntryLoading(true);
+
+  try {
+    const blockCheck = await new Promise((resolve, reject) => {
+      google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .checkOvertimeBlocks_SERVER(employeeId, parseInt(month), parseInt(year));
+    });
+
+    if (!blockCheck.success) {
+      alertContainer.innerHTML = `
+        <div class="alert alert-danger">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+          <strong>Blocked:</strong> ${blockCheck.error}
+        </div>
+      `;
+      if (entrySection) entrySection.style.display = 'none';
+      if (totalSection) totalSection.style.display = 'none';
+      if (submitSection) submitSection.style.display = 'none';
+      hideEntryContent();
+      return;
+    }
+
+    const existingLogs = await new Promise((resolve, reject) => {
+      google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .getUncertifiedOvertimeForMonth_SERVER(employeeId, parseInt(month), parseInt(year));
+    });
+
+    overtimeMonthlyTotal = existingLogs.reduce((sum, log) => sum + Number(log.earnedHours || 0), 0);
+
+    const balanceData = await new Promise((resolve, reject) => {
+      google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .getTotalBalance_SERVER(employeeId);
+    });
+
+    if (!balanceData.success) {
+      throw new Error(balanceData.error || 'Unable to retrieve total balance');
+    }
+
+    overtimeTotalBalance = Number(balanceData.total || 0);
+
+    updateOvertimeProgress();
+
+    toggleEntryLoading(false);
+    if (entrySection) entrySection.style.display = 'block';
+    if (totalSection) totalSection.style.display = 'block';
+    if (submitSection) submitSection.style.display = 'block';
+
+    overtimeEntries = [];
+    document.getElementById('ot-entries-tbody').innerHTML = '';
+    calculateOvertimeGrandTotal();
+
+  } catch (error) {
+    console.error('Error updating overtime context:', error);
+    window.Modal.error('Error', 'Failed to load overtime context: ' + error);
+    hideEntryContent();
+    if (entrySection) entrySection.style.display = 'none';
+    if (totalSection) totalSection.style.display = 'none';
+    if (submitSection) submitSection.style.display = 'none';
+  }
+};
+
+function updateOvertimeProgress() {
+  const entriesTotal = overtimeEntries.reduce((sum, entry) => sum + Number(entry.cocEarned || 0), 0);
+  const monthlyTotal = overtimeMonthlyTotal + entriesTotal;
+  const monthlyPercent = Math.min((monthlyTotal / 40) * 100, 100);
+
+  document.getElementById('ot-monthly-hours').textContent = monthlyTotal.toFixed(1);
+  const monthlyBar = document.getElementById('ot-monthly-progress');
+  monthlyBar.style.width = monthlyPercent + '%';
+  monthlyBar.className = monthlyPercent >= 100 ? 'progress-bar bg-danger' :
+                         monthlyPercent >= 80 ? 'progress-bar bg-warning' :
+                         'progress-bar bg-success';
+
+  const totalBalance = overtimeTotalBalance + entriesTotal;
+  const totalPercent = Math.min((totalBalance / 120) * 100, 100);
+
+  document.getElementById('ot-total-hours').textContent = totalBalance.toFixed(1);
+  const totalBar = document.getElementById('ot-total-progress');
+  totalBar.style.width = totalPercent + '%';
+  totalBar.className = totalPercent >= 100 ? 'progress-bar bg-danger' :
+                       totalPercent >= 80 ? 'progress-bar bg-warning' :
+                       'progress-bar bg-success';
+}
+
+window.addOvertimeDay = function() {
+  const rowId = ++overtimeRowCounter;
+  const tbody = document.getElementById('ot-entries-tbody');
+
+  const row = document.createElement('tr');
+  row.id = `ot-row-${rowId}`;
+  row.innerHTML = `
+    <td>
+      <input type="number" class="form-control form-control-sm" id="ot-date-${rowId}" min="1" max="31"
+             placeholder="Day" inputmode="numeric" onchange="onOvertimeDateChange(${rowId})" required>
+    </td>
+    <td>
+      <span class="badge bg-secondary" id="ot-daytype-${rowId}">-</span>
+    </td>
+    <td>
+      <input type="time" class="form-control form-control-sm" id="ot-am-in-${rowId}"
+             onchange="calculateOvertimeRow(${rowId})">
+    </td>
+    <td>
+      <input type="time" class="form-control form-control-sm" id="ot-am-out-${rowId}"
+             onchange="calculateOvertimeRow(${rowId})">
+    </td>
+    <td>
+      <input type="time" class="form-control form-control-sm" id="ot-pm-in-${rowId}"
+             onchange="calculateOvertimeRow(${rowId})">
+    </td>
+    <td>
+      <input type="time" class="form-control form-control-sm" id="ot-pm-out-${rowId}"
+             onchange="calculateOvertimeRow(${rowId})">
+    </td>
+    <td>
+      <input type="text" class="form-control form-control-sm" id="ot-hours-worked-${rowId}"
+             readonly style="background-color: #f8f9fa;">
+    </td>
+    <td>
+      <input type="text" class="form-control form-control-sm" id="ot-coc-earned-${rowId}"
+             readonly style="background-color: #f8f9fa;">
+    </td>
+    <td>
+      <button type="button" class="btn btn-sm btn-danger" onclick="removeOvertimeDay(${rowId})" title="Remove">
+        <i class="bi bi-trash"></i>
+      </button>
+    </td>
+  `;
+
+  tbody.appendChild(row);
+
+  overtimeEntries.push({
+    rowId: rowId,
+    date: null,
+    displayDate: null,
+    dayType: null,
+    amIn: null,
+    amOut: null,
+    pmIn: null,
+    pmOut: null,
+    hoursWorked: 0,
+    cocEarned: 0
+  });
+};
+
+window.removeOvertimeDay = function(rowId) {
+  const row = document.getElementById(`ot-row-${rowId}`);
+  if (row) row.remove();
+
+  overtimeEntries = overtimeEntries.filter(entry => entry.rowId !== rowId);
+
+  calculateOvertimeGrandTotal();
+  updateOvertimeProgress();
+};
+
+function formatISODateForDisplay(isoDate) {
+  if (!isoDate) return '';
+  const parts = isoDate.split('-').map(Number);
+  if (parts.length !== 3) return isoDate;
+  const [year, month, day] = parts;
+  const date = new Date(year, month - 1, day);
+  if (Number.isNaN(date.getTime())) return isoDate;
+  return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+function resetOvertimeEntryDate(entry, rowId) {
+  if (!entry) return;
+
+  entry.date = null;
+  entry.displayDate = null;
+  entry.dayType = null;
+  entry.isHoliday = false;
+  entry.holidayName = '';
+  entry.hoursWorked = 0;
+  entry.cocEarned = 0;
+  entry.error = null;
+
+  const badge = document.getElementById(`ot-daytype-${rowId}`);
+  if (badge) {
+    badge.textContent = '-';
+    badge.className = 'badge bg-secondary';
+  }
+
+  const hoursField = document.getElementById(`ot-hours-worked-${rowId}`);
+  if (hoursField) hoursField.value = '';
+  const cocField = document.getElementById(`ot-coc-earned-${rowId}`);
+  if (cocField) cocField.value = '';
+}
+
+window.onOvertimeDateChange = async function(rowId) {
+  const dateInput = document.getElementById(`ot-date-${rowId}`);
+  const entry = overtimeEntries.find(e => e.rowId === rowId);
+  if (!dateInput || !entry) return;
+
+  const rawValue = dateInput.value;
+
+  if (!rawValue) {
+    resetOvertimeEntryDate(entry, rowId);
+    calculateOvertimeGrandTotal();
+    updateOvertimeProgress();
+    return;
+  }
+
+  const day = parseInt(rawValue, 10);
+  if (Number.isNaN(day)) {
+    window.Modal.error('Invalid Day', 'Please enter a valid day number (1-31).');
+    dateInput.value = '';
+    resetOvertimeEntryDate(entry, rowId);
+    calculateOvertimeGrandTotal();
+    updateOvertimeProgress();
+    return;
+  }
+
+  const monthValue = document.getElementById('ot-month').value;
+  const yearValue = document.getElementById('ot-year').value;
+
+  if (monthValue === '' || !yearValue) {
+    window.Modal.error('Incomplete Selection', 'Please select the overtime month and year first.');
+    dateInput.value = '';
+    resetOvertimeEntryDate(entry, rowId);
+    calculateOvertimeGrandTotal();
+    updateOvertimeProgress();
+    return;
+  }
+
+  const selectedMonth = parseInt(monthValue, 10);
+  const selectedYear = parseInt(yearValue, 10);
+
+  if (Number.isNaN(selectedMonth) || Number.isNaN(selectedYear)) {
+    window.Modal.error('Invalid Selection', 'Selected month or year is invalid.');
+    dateInput.value = '';
+    resetOvertimeEntryDate(entry, rowId);
+    calculateOvertimeGrandTotal();
+    updateOvertimeProgress();
+    return;
+  }
+
+  const candidateDate = new Date(selectedYear, selectedMonth, day);
+  if (candidateDate.getMonth() !== selectedMonth || candidateDate.getFullYear() !== selectedYear || candidateDate.getDate() !== day) {
+    window.Modal.error('Invalid Day', 'The entered day is not valid for the selected month.');
+    dateInput.value = '';
+    resetOvertimeEntryDate(entry, rowId);
+    calculateOvertimeGrandTotal();
+    updateOvertimeProgress();
+    return;
+  }
+
+  const isoDate = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const comparisonDate = new Date(candidateDate);
+  comparisonDate.setHours(0, 0, 0, 0);
+  if (comparisonDate > today) {
+    window.Modal.error('Invalid Date', 'Future dates are not allowed.');
+    dateInput.value = '';
+    resetOvertimeEntryDate(entry, rowId);
+    calculateOvertimeGrandTotal();
+    updateOvertimeProgress();
+    return;
+  }
+
+  const duplicateCount = overtimeEntries.filter(item => item.rowId !== rowId && item.date === isoDate).length;
+  if (duplicateCount > 0) {
+    window.Modal.error('Duplicate Date', 'This day has already been entered for the selected month.');
+    dateInput.value = '';
+    resetOvertimeEntryDate(entry, rowId);
+    calculateOvertimeGrandTotal();
+    updateOvertimeProgress();
+    return;
+  }
+
+  entry.date = isoDate;
+  entry.displayDate = formatISODateForDisplay(isoDate);
+
+  let resolvedDayType = 'weekday';
+  let isHoliday = false;
+  let holidayName = '';
+
+  const badge = document.getElementById(`ot-daytype-${rowId}`);
+
+  try {
+    const dayTypeResult = await new Promise((resolve, reject) => {
+      google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .getDayType_SERVER(isoDate);
+    });
+
+    if (badge) {
+      if (dayTypeResult.isHoliday) {
+        badge.textContent = `Holiday (${dayTypeResult.holidayName})`;
+        badge.className = 'badge bg-danger';
+      } else if (dayTypeResult.isWeekend) {
+        badge.textContent = 'Weekend';
+        badge.className = 'badge bg-warning text-dark';
+      } else {
+        badge.textContent = 'Weekday';
+        badge.className = 'badge bg-primary';
+      }
+    }
+
+    if (dayTypeResult.isHoliday) {
+      resolvedDayType = 'holiday';
+      isHoliday = true;
+      holidayName = dayTypeResult.holidayName || '';
+    } else if (dayTypeResult.isWeekend) {
+      resolvedDayType = 'weekend';
+    }
+  } catch (error) {
+    console.error('Error detecting day type:', error);
+    if (badge) {
+      badge.textContent = 'Weekday';
+      badge.className = 'badge bg-primary';
+    }
+  }
+
+  entry.dayType = resolvedDayType;
+  entry.isHoliday = isHoliday;
+  entry.holidayName = holidayName;
+
+  calculateOvertimeRow(rowId);
+};
+
+window.calculateOvertimeRow = function(rowId) {
+  const entry = overtimeEntries.find(e => e.rowId === rowId);
+  if (!entry || !entry.date) return;
+
+  const amIn = document.getElementById(`ot-am-in-${rowId}`).value;
+  const amOut = document.getElementById(`ot-am-out-${rowId}`).value;
+  const pmIn = document.getElementById(`ot-pm-in-${rowId}`).value;
+  const pmOut = document.getElementById(`ot-pm-out-${rowId}`).value;
+
+  entry.amIn = amIn;
+  entry.amOut = amOut;
+  entry.pmIn = pmIn;
+  entry.pmOut = pmOut;
+
+  let isValid = true;
+  let errorMsg = '';
+
+  if (amIn && amOut) {
+    const amInTime = parseTime(amIn);
+    const amOutTime = parseTime(amOut);
+
+    if (amInTime >= parseTime('13:00')) {
+      errorMsg = 'AM In must be before 1:00 PM';
+      isValid = false;
+    } else if (amOutTime < parseTime('08:00') || amOutTime >= parseTime('13:00')) {
+      errorMsg = 'AM Out must be between 8:00 AM and 12:59 PM';
+      isValid = false;
+    } else if (amOutTime <= amInTime) {
+      errorMsg = 'AM Out must be after AM In';
+      isValid = false;
+    }
+  } else if (amIn || amOut) {
+    errorMsg = 'Both AM In and AM Out must be filled';
+    isValid = false;
+  }
+
+  if (pmIn && pmOut) {
+    const pmInTime = parseTime(pmIn);
+    const pmOutTime = parseTime(pmOut);
+
+    if (pmInTime < parseTime('12:00')) {
+      errorMsg = 'PM In must be 12:00 PM or later';
+      isValid = false;
+    } else if (pmOutTime < parseTime('12:00')) {
+      errorMsg = 'PM Out must be 12:00 PM or later';
+      isValid = false;
+    } else if (pmOutTime <= pmInTime) {
+      errorMsg = 'PM Out must be after PM In';
+      isValid = false;
+    }
+  } else if (pmIn || pmOut) {
+    errorMsg = 'Both PM In and PM Out must be filled';
+    isValid = false;
+  }
+
+  if (amOut && pmIn) {
+    if (parseTime(pmIn) <= parseTime(amOut)) {
+      errorMsg = 'PM In must be after AM Out (noon break required)';
+      isValid = false;
+    }
+  }
+
+  if (!isValid) {
+    entry.hoursWorked = 0;
+    entry.cocEarned = 0;
+    entry.error = errorMsg;
+  } else {
+    entry.error = null;
+
+    const result = calculateOvertimeHours(entry.dayType || 'weekday', amIn, amOut, pmIn, pmOut);
+    entry.hoursWorked = result.hoursWorked;
+    entry.cocEarned = result.cocEarned;
+  }
+
+  document.getElementById(`ot-hours-worked-${rowId}`).value = entry.hoursWorked.toFixed(1);
+  document.getElementById(`ot-coc-earned-${rowId}`).value = entry.cocEarned.toFixed(1);
+
+  calculateOvertimeGrandTotal();
+  updateOvertimeProgress();
+};
+
+function parseTime(timeStr) {
+  const [hours, minutes] = timeStr.split(':').map(Number);
+  return hours * 60 + minutes;
+}
+
+function calculateOverlap(start1, end1, start2, end2) {
+  const overlapStart = Math.max(start1, start2);
+  const overlapEnd = Math.min(end1, end2);
+  return Math.max(0, overlapEnd - overlapStart);
+}
+
+function calculateOvertimeHours(dayType, amIn, amOut, pmIn, pmOut) {
+  let hoursWorked = 0;
+  let cocEarned = 0;
+
+  if (dayType === 'weekday') {
+    if (pmIn && pmOut) {
+      const pmInTime = parseTime(pmIn);
+      const pmOutTime = parseTime(pmOut);
+      const windowStart = parseTime('17:00');
+      const windowEnd = parseTime('19:00');
+
+      const overlap = calculateOverlap(pmInTime, pmOutTime, windowStart, windowEnd);
+      const hours = Math.min(overlap / 60, 2.0);
+      hoursWorked += hours;
+      cocEarned += hours * 1.0;
+    }
+  } else {
+    if (amIn && amOut) {
+      const amInTime = parseTime(amIn);
+      const amOutTime = parseTime(amOut);
+      const windowStart = parseTime('08:00');
+      const windowEnd = parseTime('12:00');
+
+      const overlap = calculateOverlap(amInTime, amOutTime, windowStart, windowEnd);
+      const hours = overlap / 60;
+      hoursWorked += hours;
+      cocEarned += hours * 1.5;
+    }
+
+    if (pmIn && pmOut) {
+      const pmInTime = parseTime(pmIn);
+      const pmOutTime = parseTime(pmOut);
+      const windowStart = parseTime('13:00');
+      const windowEnd = parseTime('17:00');
+
+      const overlap = calculateOverlap(pmInTime, pmOutTime, windowStart, windowEnd);
+      const hours = overlap / 60;
+      hoursWorked += hours;
+      cocEarned += hours * 1.5;
+    }
+  }
+
+  return { hoursWorked, cocEarned };
+}
+
+function calculateOvertimeGrandTotal() {
+  const totalHoursWorked = overtimeEntries.reduce((sum, entry) => sum + Number(entry.hoursWorked || 0), 0);
+  const totalCocEarned = overtimeEntries.reduce((sum, entry) => sum + Number(entry.cocEarned || 0), 0);
+
+  document.getElementById('ot-grand-hours-worked').textContent = totalHoursWorked.toFixed(1);
+  document.getElementById('ot-grand-coc-earned').textContent = totalCocEarned.toFixed(1);
+}
+
+window.submitOvertimeForm = async function() {
+  const employeeId = document.getElementById('ot-employee').value;
+  const month = parseInt(document.getElementById('ot-month').value);
+  const year = parseInt(document.getElementById('ot-year').value);
+
+  if (!employeeId || month === '' || !year) {
+    window.Modal.error('Validation Error', 'Please select employee, month, and year.');
+    return;
+  }
+
+  if (overtimeEntries.length === 0) {
+    window.Modal.error('Validation Error', 'Please add at least one overtime entry.');
+    return;
+  }
+
+  for (const entry of overtimeEntries) {
+    if (!entry.date) {
+      window.Modal.error('Validation Error', 'All entries must have a date.');
+      return;
+    }
+
+    if (!entry.amIn && !entry.amOut && !entry.pmIn && !entry.pmOut) {
+      window.Modal.error('Validation Error', `Entry for ${entry.displayDate || entry.date} has no time inputs.`);
+      return;
+    }
+    if (entry.error) {
+      window.Modal.error('Validation Error', `Entry for ${entry.displayDate || entry.date}: ${entry.error}`);
+      return;
+    }
+  }
+
+  const totalCocEarned = overtimeEntries.reduce((sum, entry) => sum + Number(entry.cocEarned || 0), 0);
+  const newMonthlyTotal = overtimeMonthlyTotal + totalCocEarned;
+
+  if (newMonthlyTotal > 40) {
+    window.Modal.error('Monthly Cap Exceeded',
+      `Total would be ${newMonthlyTotal.toFixed(1)} hours, exceeding the 40-hour monthly accrual cap.`);
+    return;
+  }
+
+  const newTotalBalance = overtimeTotalBalance + totalCocEarned;
+  if (newTotalBalance > 120) {
+    window.Modal.error('Total Balance Cap Exceeded',
+      `Total balance would be ${newTotalBalance.toFixed(1)} hours, exceeding the 120-hour cap.`);
+    return;
+  }
+
+  const spinner = document.getElementById('ot-submit-spinner');
+  spinner.classList.remove('d-none');
+
+  try {
+    const result = await new Promise((resolve, reject) => {
+      google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .logOvertimeBatch_SERVER({
+          employeeId: employeeId,
+          month: month,
+          year: year,
+          entries: overtimeEntries.map(entry => ({
+            date: entry.date,
+            dayType: entry.dayType,
+            isHoliday: entry.isHoliday,
+            holidayName: entry.holidayName,
+            amIn: entry.amIn,
+            amOut: entry.amOut,
+            pmIn: entry.pmIn,
+            pmOut: entry.pmOut,
+            hoursWorked: entry.hoursWorked,
+            cocEarned: entry.cocEarned
+          }))
+        });
+    });
+
+    if (result.success) {
+      const message = `
+        <div style="text-align: center;">
+          <h4 class="text-success mb-3">${result.count} overtime log(s) created</h4>
+          <div class="mb-3">
+            <h5 class="text-primary mb-0">${result.totalCocEarned.toFixed(1)} hours</h5>
+            <small class="text-muted">Total COC Earned (Uncertified)</small>
+          </div>
+          <p class="text-muted mb-0">Generate a certificate to activate these credits.</p>
+        </div>
+      `;
+      window.Modal.success('Overtime Logged Successfully!', message);
+
+      overtimeEntries = [];
+      document.getElementById('ot-entries-tbody').innerHTML = '';
+      calculateOvertimeGrandTotal();
+      updateOvertimeContext();
+    } else {
+      window.Modal.error('Error', result.error);
+    }
+  } catch (error) {
+    window.Modal.error('Error', 'Failed to log overtime: ' + error);
+  } finally {
+    spinner.classList.add('d-none');
+  }
+};
