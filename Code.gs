@@ -139,7 +139,7 @@ function checkOvertimeBlocks_SERVER(employeeId, month, year) {
 
     // Check for existing certificate for this month/year
     // Query all certificates for employee and filter by monthYear in code
-    const allCertificatesQuery = db.query('certificates').get();
+    const allCertificatesQuery = db.getDocuments('certificates');
 
     for (let i = 0; i < allCertificatesQuery.length; i++) {
       const cert = allCertificatesQuery[i].obj;
@@ -153,7 +153,7 @@ function checkOvertimeBlocks_SERVER(employeeId, month, year) {
 
     // Check for historical balance for this month/year
     // Query all creditBatches for employee and filter in code
-    const allBatchesQuery = db.query('creditBatches').get();
+    const allBatchesQuery = db.getDocuments('creditBatches');
 
     for (let i = 0; i < allBatchesQuery.length; i++) {
       const batch = allBatchesQuery[i].obj;
@@ -261,7 +261,7 @@ function getDayType_SERVER(dateStr) {
     let holidayName = '';
 
     try {
-      const holidaysQuery = db.query('holidays').get();
+      const holidaysQuery = db.getDocuments('holidays');
 
       for (let i = 0; i < holidaysQuery.length; i++) {
         const holiday = holidaysQuery[i].obj;
@@ -298,7 +298,7 @@ function getDayType_SERVER(dateStr) {
 function getHistoricalBalanceMonths_SERVER(employeeId, year) {
   try {
     const db = getFirestore();
-    const allBatchesQuery = db.query('creditBatches').get();
+    const allBatchesQuery = db.getDocuments('creditBatches');
 
     const historicalMonths = [];
 
@@ -368,7 +368,7 @@ function logOvertimeBatch_SERVER(data) {
     const dateSet = new Set();
 
     // Get all existing overtime logs for this employee
-    const allLogsQuery = db.query('overtimeLogs').get();
+    const allLogsQuery = db.getDocuments('overtimeLogs');
     const employeeLogs = [];
 
     for (let i = 0; i < allLogsQuery.length; i++) {
