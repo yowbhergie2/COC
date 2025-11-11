@@ -67,6 +67,9 @@
     import { getAuth, signInWithCustomToken } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
     import { getFirestore, collection, query, where, orderBy, onSnapshot, doc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
+    // --- FIX ---
+    // Assign imports directly to window so they are globally accessible
+    // by all script files.
     window.initializeApp = initializeApp;
     window.getAuth = getAuth;
     window.signInWithCustomToken = signInWithCustomToken;
@@ -78,21 +81,10 @@
     window.onSnapshot = onSnapshot;
     window.doc = doc;
 
-    let db, auth, currentUser;
-    let employeesData = [];
-    let unsubscribers = [];
-    let librariesData = { offices: [], positions: [] };
-    let employeeSearchTerms = { active: '', inactive: '' };
-    let librarySearchTerms = { offices: '', positions: '' };
-
-    window.db = db;
-    window.auth = auth;
-    window.currentUser = currentUser;
-    window.employeesData = employeesData;
-    window.unsubscribers = unsubscribers;
-    window.librariesData = librariesData;
-    window.employeeSearchTerms = employeeSearchTerms;
-    window.librarySearchTerms = librarySearchTerms;
+    // --- FIX ---
+    // Removed all 'let ...' and 'window.db = db' declarations.
+    // They are now properly declared and assigned in CoreJS.html
+    // to avoid redeclaration errors.
 
     <?!= HtmlService.createHtmlOutputFromFile('CoreJS').getContent() ?>
     <?!= HtmlService.createHtmlOutputFromFile('EmployeesJS').getContent() ?>
