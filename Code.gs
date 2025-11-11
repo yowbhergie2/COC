@@ -186,14 +186,24 @@ function getUncertifiedOvertimeForMonth_SERVER(employeeId, month, year) {
     const monthStart = new Date(year, month, 1);
     const monthEnd = new Date(year, month + 1, 0);
 
-    const logsQuery = db.query('overtimeLogs')
-      .where('employeeId', '==', employeeId)
-      .where('overtimeDate', '>=', monthStart.toISOString())
-      .where('overtimeDate', '<=', monthEnd.toISOString())
-      .where('status', '==', 'Uncertified')
-      .get();
+    const logDocs = db.getDocuments('overtimeLogs');
+    const logs = [];
 
-    const logs = logsQuery.map(doc => doc.obj);
+    for (let i = 0; i < logDocs.length; i++) {
+      const log = logDocs[i].obj;
+      if (!log || log.employeeId !== employeeId) {
+        continue;
+      }
+
+      if (log.status !== 'Uncertified' || !log.overtimeDate) {
+        continue;
+      }
+
+      const overtimeDate = new Date(log.overtimeDate);
+      if (overtimeDate >= monthStart && overtimeDate <= monthEnd) {
+        logs.push(log);
+      }
+    }
 
     return logs;
 
@@ -209,26 +219,26 @@ function getTotalBalance_SERVER(employeeId) {
     const db = getFirestore();
 
     // Get Active credits
-    const activeBatchesQuery = db.query('creditBatches')
-      .where('employeeId', '==', employeeId)
-      .where('status', '==', 'Active')
-      .get();
-
+    const batchDocs = db.getDocuments('creditBatches');
     let activeBalance = 0;
-    activeBatchesQuery.forEach(doc => {
-      activeBalance += doc.obj.remainingHours || 0;
-    });
+
+    for (let i = 0; i < batchDocs.length; i++) {
+      const batch = batchDocs[i].obj;
+      if (batch && batch.employeeId === employeeId && batch.status === 'Active') {
+        activeBalance += Number(batch.remainingHours || 0);
+      }
+    }
 
     // Get Uncertified logs
-    const uncertifiedLogsQuery = db.query('overtimeLogs')
-      .where('employeeId', '==', employeeId)
-      .where('status', '==', 'Uncertified')
-      .get();
-
+    const logDocs = db.getDocuments('overtimeLogs');
     let uncertifiedBalance = 0;
-    uncertifiedLogsQuery.forEach(doc => {
-      uncertifiedBalance += doc.obj.earnedHours || 0;
-    });
+
+    for (let i = 0; i < logDocs.length; i++) {
+      const log = logDocs[i].obj;
+      if (log && log.employeeId === employeeId && log.status === 'Uncertified') {
+        uncertifiedBalance += Number(log.earnedHours || 0);
+      }
+    }
 
     return {
       success: true,
@@ -342,7 +352,7 @@ function logOvertimeBatch_SERVER(data) {
 
     // Check monthly cap
     const existingLogs = getUncertifiedOvertimeForMonth_SERVER(data.employeeId, data.month, data.year);
-    const existingMonthTotal = existingLogs.reduce((sum, log) => sum + log.earnedHours, 0);
+    const existingMonthTotal = existingLogs.reduce((sum, log) => sum + Number(log.earnedHours || 0), 0);
     const newEntriesTotal = data.entries.reduce((sum, entry) => sum + entry.cocEarned, 0);
     const totalMonthly = existingMonthTotal + newEntriesTotal;
 
@@ -467,7 +477,7 @@ function generateCertificate_SERVER(data) {
       const logDoc = db.getDocument('overtimeLogs/' + logId);
       if (logDoc && logDoc.obj.status === 'Uncertified' && logDoc.obj.employeeId === data.employeeId) {
         logs.push(logDoc.obj);
-        totalEarnedHours += logDoc.obj.earnedHours;
+        totalEarnedHours += Number(logDoc.obj.earnedHours || 0);
       }
     });
     
@@ -525,15 +535,15 @@ function generateCertificate_SERVER(data) {
     
     db.createDocument('creditBatches/' + batchId, batchData);
     
-    const batchesQuery = db.query('creditBatches')
-      .where('employeeId', '==', data.employeeId)
-      .where('status', '==', 'Active')
-      .get();
-    
+    const allBatchDocs = db.getDocuments('creditBatches');
     let balanceAfter = 0;
-    batchesQuery.forEach(doc => {
-      balanceAfter += doc.obj.remainingHours;
-    });
+
+    for (let i = 0; i < allBatchDocs.length; i++) {
+      const batch = allBatchDocs[i].obj;
+      if (batch && batch.employeeId === data.employeeId && batch.status === 'Active') {
+        balanceAfter += Number(batch.remainingHours || 0);
+      }
+    }
     
     const ledgerData = {
       ledgerId: ledgerId,
@@ -569,17 +579,26 @@ function logCto_SERVER(data) {
     
     const hoursUsed = parseFloat(data.hoursUsed);
     
-    const batchesQuery = db.query('creditBatches')
-      .where('employeeId', '==', data.employeeId)
-      .where('status', '==', 'Active')
-      .orderBy('expiryDate', 'asc')
-      .get();
-    
+    const batchDocs = db.getDocuments('creditBatches');
     let availableBalance = 0;
     const batches = [];
-    batchesQuery.forEach(doc => {
-      batches.push({id: doc.name.split('/').pop(), data: doc.obj});
-      availableBalance += doc.obj.remainingHours;
+
+    for (let i = 0; i < batchDocs.length; i++) {
+      const doc = batchDocs[i];
+      const batch = doc.obj;
+      if (!batch || batch.employeeId !== data.employeeId || batch.status !== 'Active') {
+        continue;
+      }
+
+      const batchId = doc.name.split('/').pop();
+      batches.push({ id: batchId, data: batch });
+      availableBalance += Number(batch.remainingHours || 0);
+    }
+
+    batches.sort((a, b) => {
+      const dateA = a.data.expiryDate ? new Date(a.data.expiryDate) : new Date('9999-12-31');
+      const dateB = b.data.expiryDate ? new Date(b.data.expiryDate) : new Date('9999-12-31');
+      return dateA - dateB;
     });
     
     if (hoursUsed > availableBalance) {
@@ -1009,7 +1028,7 @@ function migrateHistoricalBalance_SERVER(data) {
     batchesQuery.forEach(doc => {
       const batch = doc.obj;
       if (batch.employeeId === data.employeeId && batch.status === 'Active') {
-        currentBalance += batch.remainingHours || 0;
+        currentBalance += Number(batch.remainingHours || 0);
       }
     });
     
@@ -1017,7 +1036,7 @@ function migrateHistoricalBalance_SERVER(data) {
     logsQuery.forEach(doc => {
       const log = doc.obj;
       if (log.employeeId === data.employeeId && log.status === 'Uncertified') {
-        currentBalance += log.earnedHours || 0;
+        currentBalance += Number(log.earnedHours || 0);
       }
     });
     
@@ -1289,11 +1308,16 @@ function checkEmployeeHasOvertimeLogs_SERVER(employeeId) {
   try {
     const db = getFirestore();
 
-    const logsQuery = db.query('overtimeLogs')
-      .where('employeeId', '==', employeeId)
-      .get();
+    const logDocs = db.getDocuments('overtimeLogs');
+    let hasLogs = false;
 
-    const hasLogs = logsQuery.length > 0;
+    for (let i = 0; i < logDocs.length; i++) {
+      const log = logDocs[i].obj;
+      if (log && log.employeeId === employeeId) {
+        hasLogs = true;
+        break;
+      }
+    }
 
     return {
       success: true,
@@ -1314,23 +1338,31 @@ function dailyForfeitureTask() {
     const db = getFirestore();
     const today = new Date();
     
-    const expiredQuery = db.query('creditBatches')
-      .where('status', '==', 'Active')
-      .where('expiryDate', '<', today.toISOString())
-      .get();
-    
+    const batchDocs = db.getDocuments('creditBatches');
+
     let forfeitedCount = 0;
     let totalForfeitedHours = 0;
-    
-    expiredQuery.forEach(doc => {
+
+    for (let i = 0; i < batchDocs.length; i++) {
+      const doc = batchDocs[i];
       const batch = doc.obj;
+      if (!batch || batch.status !== 'Active' || !batch.expiryDate) {
+        continue;
+      }
+
+      const expiryDate = new Date(batch.expiryDate);
+      if (expiryDate >= today) {
+        continue;
+      }
+
       const batchId = doc.name.split('/').pop();
-      
+      const remainingHours = Number(batch.remainingHours || 0);
+
       db.updateDocument('creditBatches/' + batchId, {
         status: 'Expired',
         expiredAt: today.toISOString()
       });
-      
+
       const ledgerId = 'LEDGER_' + Utilities.getUuid();
       const ledgerData = {
         ledgerId: ledgerId,
@@ -1338,17 +1370,17 @@ function dailyForfeitureTask() {
         transactionDate: today.toISOString(),
         transactionType: 'Forfeited',
         referenceId: batchId,
-        hoursChange: -batch.remainingHours,
+        hoursChange: -remainingHours,
         balanceAfter: 0,
         remarks: `Batch ${batchId} expired`,
         createdAt: today.toISOString()
       };
-      
+
       db.createDocument('ledger/' + ledgerId, ledgerData);
-      
+
       forfeitedCount++;
-      totalForfeitedHours += batch.remainingHours;
-    });
+      totalForfeitedHours += remainingHours;
+    }
     
     Logger.log(`Forfeiture task completed. ${forfeitedCount} batches expired. Total: ${totalForfeitedHours} hours`);
     
@@ -1385,36 +1417,48 @@ function syncReportsToSheet() {
     sheet.appendRow(['']);
     sheet.appendRow(['Employee ID', 'Name', 'Total Balance (hrs)', 'Active Batches', 'Earliest Expiry']);
     
-    const employeesQuery = db.query('employees')
-      .where('isActive', '==', true)
-      .orderBy('lastName')
-      .get();
-    
+    const employeeDocs = db.getDocuments('employees');
+    const batchDocs = db.getDocuments('creditBatches');
+
     const reportData = [];
-    
-    employeesQuery.forEach(empDoc => {
-      const emp = empDoc.obj;
-      
-      const batchesQuery = db.query('creditBatches')
-        .where('employeeId', '==', emp.employeeId)
-        .where('status', '==', 'Active')
-        .orderBy('expiryDate', 'asc')
-        .get();
-      
+
+    const activeEmployees = employeeDocs
+      .map(doc => doc.obj)
+      .filter(emp => emp && emp.isActive)
+      .sort((a, b) => {
+        const lastA = (a.lastName || '').toLowerCase();
+        const lastB = (b.lastName || '').toLowerCase();
+        if (lastA < lastB) return -1;
+        if (lastA > lastB) return 1;
+        return 0;
+      });
+
+    activeEmployees.forEach(emp => {
+      const employeeBatches = batchDocs
+        .filter(doc => {
+          const batch = doc.obj;
+          return batch && batch.employeeId === emp.employeeId && batch.status === 'Active';
+        })
+        .map(doc => doc.obj)
+        .sort((a, b) => {
+          const dateA = a.expiryDate ? new Date(a.expiryDate) : new Date('9999-12-31');
+          const dateB = b.expiryDate ? new Date(b.expiryDate) : new Date('9999-12-31');
+          return dateA - dateB;
+        });
+
       let totalBalance = 0;
       let activeBatches = 0;
       let earliestExpiry = '';
-      
-      batchesQuery.forEach(batchDoc => {
-        const batch = batchDoc.obj;
-        totalBalance += batch.remainingHours;
+
+      employeeBatches.forEach(batch => {
+        totalBalance += Number(batch.remainingHours || 0);
         activeBatches++;
-        
+
         if (!earliestExpiry && batch.expiryDate) {
           earliestExpiry = new Date(batch.expiryDate).toLocaleDateString('en-US', {timeZone: 'Asia/Manila'});
         }
       });
-      
+
       if (totalBalance > 0) {
         reportData.push([
           emp.employeeId,
