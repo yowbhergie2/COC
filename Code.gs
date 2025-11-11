@@ -139,7 +139,7 @@ function checkOvertimeBlocks_SERVER(employeeId, month, year) {
 
     // Check for existing certificate for this month/year
     // Query all certificates for employee and filter by monthYear in code
-    const allCertificatesQuery = db.query('certificates').get();
+    const allCertificatesQuery = db.query('certificates').Execute();
 
     for (let i = 0; i < allCertificatesQuery.length; i++) {
       const cert = allCertificatesQuery[i].obj;
@@ -153,7 +153,7 @@ function checkOvertimeBlocks_SERVER(employeeId, month, year) {
 
     // Check for historical balance for this month/year
     // Query all creditBatches for employee and filter in code
-    const allBatchesQuery = db.query('creditBatches').get();
+    const allBatchesQuery = db.query('creditBatches').Execute();
 
     for (let i = 0; i < allBatchesQuery.length; i++) {
       const batch = allBatchesQuery[i].obj;
@@ -187,11 +187,11 @@ function getUncertifiedOvertimeForMonth_SERVER(employeeId, month, year) {
     const monthEnd = new Date(year, month + 1, 0);
 
     const logsQuery = db.query('overtimeLogs')
-      .where('employeeId', '==', employeeId)
-      .where('overtimeDate', '>=', monthStart.toISOString())
-      .where('overtimeDate', '<=', monthEnd.toISOString())
-      .where('status', '==', 'Uncertified')
-      .get();
+      .Where('employeeId', '==', employeeId)
+      .Where('overtimeDate', '>=', monthStart.toISOString())
+      .Where('overtimeDate', '<=', monthEnd.toISOString())
+      .Where('status', '==', 'Uncertified')
+      .Execute();
 
     const logs = logsQuery.map(doc => doc.obj);
 
@@ -210,9 +210,9 @@ function getTotalBalance_SERVER(employeeId) {
 
     // Get Active credits
     const activeBatchesQuery = db.query('creditBatches')
-      .where('employeeId', '==', employeeId)
-      .where('status', '==', 'Active')
-      .get();
+      .Where('employeeId', '==', employeeId)
+      .Where('status', '==', 'Active')
+      .Execute();
 
     let activeBalance = 0;
     activeBatchesQuery.forEach(doc => {
@@ -221,9 +221,9 @@ function getTotalBalance_SERVER(employeeId) {
 
     // Get Uncertified logs
     const uncertifiedLogsQuery = db.query('overtimeLogs')
-      .where('employeeId', '==', employeeId)
-      .where('status', '==', 'Uncertified')
-      .get();
+      .Where('employeeId', '==', employeeId)
+      .Where('status', '==', 'Uncertified')
+      .Execute();
 
     let uncertifiedBalance = 0;
     uncertifiedLogsQuery.forEach(doc => {
@@ -261,7 +261,7 @@ function getDayType_SERVER(dateStr) {
     let holidayName = '';
 
     try {
-      const holidaysQuery = db.query('holidays').get();
+      const holidaysQuery = db.query('holidays').Execute();
 
       for (let i = 0; i < holidaysQuery.length; i++) {
         const holiday = holidaysQuery[i].obj;
@@ -298,7 +298,7 @@ function getDayType_SERVER(dateStr) {
 function getHistoricalBalanceMonths_SERVER(employeeId, year) {
   try {
     const db = getFirestore();
-    const allBatchesQuery = db.query('creditBatches').get();
+    const allBatchesQuery = db.query('creditBatches').Execute();
 
     const historicalMonths = [];
 
@@ -368,7 +368,7 @@ function logOvertimeBatch_SERVER(data) {
     const dateSet = new Set();
 
     // Get all existing overtime logs for this employee
-    const allLogsQuery = db.query('overtimeLogs').get();
+    const allLogsQuery = db.query('overtimeLogs').Execute();
     const employeeLogs = [];
 
     for (let i = 0; i < allLogsQuery.length; i++) {
@@ -526,9 +526,9 @@ function generateCertificate_SERVER(data) {
     db.createDocument('creditBatches/' + batchId, batchData);
     
     const batchesQuery = db.query('creditBatches')
-      .where('employeeId', '==', data.employeeId)
-      .where('status', '==', 'Active')
-      .get();
+      .Where('employeeId', '==', data.employeeId)
+      .Where('status', '==', 'Active')
+      .Execute();
     
     let balanceAfter = 0;
     batchesQuery.forEach(doc => {
@@ -570,10 +570,10 @@ function logCto_SERVER(data) {
     const hoursUsed = parseFloat(data.hoursUsed);
     
     const batchesQuery = db.query('creditBatches')
-      .where('employeeId', '==', data.employeeId)
-      .where('status', '==', 'Active')
-      .orderBy('expiryDate', 'asc')
-      .get();
+      .Where('employeeId', '==', data.employeeId)
+      .Where('status', '==', 'Active')
+      .OrderBy('expiryDate', 'asc')
+      .Execute();
     
     let availableBalance = 0;
     const batches = [];
@@ -1290,8 +1290,8 @@ function checkEmployeeHasOvertimeLogs_SERVER(employeeId) {
     const db = getFirestore();
 
     const logsQuery = db.query('overtimeLogs')
-      .where('employeeId', '==', employeeId)
-      .get();
+      .Where('employeeId', '==', employeeId)
+      .Execute();
 
     const hasLogs = logsQuery.length > 0;
 
@@ -1315,9 +1315,9 @@ function dailyForfeitureTask() {
     const today = new Date();
     
     const expiredQuery = db.query('creditBatches')
-      .where('status', '==', 'Active')
-      .where('expiryDate', '<', today.toISOString())
-      .get();
+      .Where('status', '==', 'Active')
+      .Where('expiryDate', '<', today.toISOString())
+      .Execute();
     
     let forfeitedCount = 0;
     let totalForfeitedHours = 0;
@@ -1386,9 +1386,9 @@ function syncReportsToSheet() {
     sheet.appendRow(['Employee ID', 'Name', 'Total Balance (hrs)', 'Active Batches', 'Earliest Expiry']);
     
     const employeesQuery = db.query('employees')
-      .where('isActive', '==', true)
-      .orderBy('lastName')
-      .get();
+      .Where('isActive', '==', true)
+      .OrderBy('lastName')
+      .Execute();
     
     const reportData = [];
     
@@ -1396,10 +1396,10 @@ function syncReportsToSheet() {
       const emp = empDoc.obj;
       
       const batchesQuery = db.query('creditBatches')
-        .where('employeeId', '==', emp.employeeId)
-        .where('status', '==', 'Active')
-        .orderBy('expiryDate', 'asc')
-        .get();
+        .Where('employeeId', '==', emp.employeeId)
+        .Where('status', '==', 'Active')
+        .OrderBy('expiryDate', 'asc')
+        .Execute();
       
       let totalBalance = 0;
       let activeBatches = 0;
