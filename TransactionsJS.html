@@ -3,14 +3,16 @@ window.loadUncertifiedLogs = async function() {
   if (!employeeId) return;
 
   const db = window.db;
-  const q = query(
-    collection(db, 'overtimeLogs'),
-    where('employeeId', '==', employeeId),
-    where('status', '==', 'Uncertified'),
-    orderBy('overtimeDate', 'desc')
+  // --- FIX ---
+  const q = window.query(
+    window.collection(db, 'overtimeLogs'),
+    window.where('employeeId', '==', employeeId),
+    window.where('status', '==', 'Uncertified'),
+    window.orderBy('overtimeDate', 'desc')
   );
 
-  onSnapshot(q, (snapshot) => {
+  window.onSnapshot(q, (snapshot) => {
+  // --- END FIX ---
     const tbody = document.getElementById('uncertifiedLogsBody');
     if (snapshot.empty) {
       tbody.innerHTML = '<tr><td colspan="6" class="text-center">No uncertified logs</td></tr>';
@@ -81,13 +83,15 @@ window.loadEmployeeLedger = async function() {
   if (!employeeId) return;
 
   const db = window.db;
-  const batchesQ = query(
-    collection(db, 'creditBatches'),
-    where('employeeId', '==', employeeId),
-    where('status', '==', 'Active')
+  // --- FIX ---
+  const batchesQ = window.query(
+    window.collection(db, 'creditBatches'),
+    window.where('employeeId', '==', employeeId),
+    window.where('status', '==', 'Active')
   );
 
-  onSnapshot(batchesQ, (snapshot) => {
+  window.onSnapshot(batchesQ, (snapshot) => {
+  // --- END FIX ---
     let balance = 0;
     snapshot.forEach(doc => {
       balance += doc.data().remainingHours;
@@ -95,13 +99,15 @@ window.loadEmployeeLedger = async function() {
     document.getElementById('ledger-balance').textContent = balance.toFixed(2);
   });
 
-  const ledgerQ = query(
-    collection(db, 'ledger'),
-    where('employeeId', '==', employeeId),
-    orderBy('transactionDate', 'desc')
+  // --- FIX ---
+  const ledgerQ = window.query(
+    window.collection(db, 'ledger'),
+    window.where('employeeId', '==', employeeId),
+    window.orderBy('transactionDate', 'desc')
   );
 
-  onSnapshot(ledgerQ, (snapshot) => {
+  window.onSnapshot(ledgerQ, (snapshot) => {
+  // --- END FIX ---
     const tbody = document.getElementById('ledgerTableBody');
     if (snapshot.empty) {
       tbody.innerHTML = '<tr><td colspan="6" class="text-center">No transactions</td></tr>';
@@ -134,13 +140,15 @@ window.showCtoBalance = async function() {
   }
 
   const db = window.db;
-  const q = query(
-    collection(db, 'creditBatches'),
-    where('employeeId', '==', employeeId),
-    where('status', '==', 'Active')
+  // --- FIX ---
+  const q = window.query(
+    window.collection(db, 'creditBatches'),
+    window.where('employeeId', '==', employeeId),
+    window.where('status', '==', 'Active')
   );
 
-  onSnapshot(q, (snapshot) => {
+  window.onSnapshot(q, (snapshot) => {
+  // --- END FIX ---
     let balance = 0;
     snapshot.forEach(doc => {
       balance += doc.data().remainingHours;
