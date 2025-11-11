@@ -61,6 +61,7 @@ function onOpen() {
     .addItem('Open CompTime Tracker', 'showAppModal')
     .addSeparator()
     .addItem('Initialize Libraries (One-time)', 'initializeLibraries')
+    .addItem('Initialize Holidays (2024-2025)', 'initializeHolidays')
     .addItem('Sync Reports to Sheet', 'syncReportsToSheet')
     .addToUi();
 }
@@ -72,13 +73,13 @@ function initializeLibraries() {
     'This will create:\n• 9 Offices\n• 45 Positions\n\n⏱️ Expected time: 30-60 seconds\n⚠️ Run this only ONCE\n\nContinue?',
     ui.ButtonSet.YES_NO
   );
-  
+
   if (response == ui.Button.YES) {
     const startTime = new Date();
     const result = initializeLibraries_SERVER();
     const endTime = new Date();
     const duration = Math.round((endTime - startTime) / 1000);
-    
+
     if (result.success) {
       ui.alert(
         '✓ Libraries Initialized Successfully!',
@@ -88,6 +89,35 @@ function initializeLibraries() {
     } else {
       ui.alert('✗ Error', result.error, ui.ButtonSet.OK);
     }
+  }
+}
+
+function initializeHolidays() {
+  const ui = SpreadsheetApp.getUi();
+  const response = ui.alert(
+    'Initialize Holidays (2024-2025)',
+    'This will add the predefined Philippines regular and special non-working holidays for calendar years 2024 and 2025.\n\nExisting holidays with the same date will be skipped.\n\nContinue?',
+    ui.ButtonSet.YES_NO
+  );
+
+  if (response !== ui.Button.YES) {
+    return;
+  }
+
+  try {
+    const result = initializeHolidays_SERVER();
+    if (result.success) {
+      let message = `Total predefined holidays: ${result.totalDefined}\nCreated: ${result.createdCount}\nSkipped (already exist): ${result.skippedCount}`;
+      if (Array.isArray(result.createdHolidays) && result.createdHolidays.length > 0) {
+        message += `\n\nCreated entries:\n${result.createdHolidays.join('\n')}`;
+      }
+
+      ui.alert('✓ Holidays Initialized', message, ui.ButtonSet.OK);
+    } else {
+      ui.alert('✗ Error', result.error || 'Failed to initialize holidays.', ui.ButtonSet.OK);
+    }
+  } catch (error) {
+    ui.alert('✗ Error', error.toString(), ui.ButtonSet.OK);
   }
 }
 
@@ -186,14 +216,24 @@ function getUncertifiedOvertimeForMonth_SERVER(employeeId, month, year) {
     const monthStart = new Date(year, month, 1);
     const monthEnd = new Date(year, month + 1, 0);
 
-    const logsQuery = db.query('overtimeLogs')
-      .where('employeeId', '==', employeeId)
-      .where('overtimeDate', '>=', monthStart.toISOString())
-      .where('overtimeDate', '<=', monthEnd.toISOString())
-      .where('status', '==', 'Uncertified')
-      .get();
+    const logDocs = db.getDocuments('overtimeLogs');
+    const logs = [];
 
-    const logs = logsQuery.map(doc => doc.obj);
+    for (let i = 0; i < logDocs.length; i++) {
+      const log = logDocs[i].obj;
+      if (!log || log.employeeId !== employeeId) {
+        continue;
+      }
+
+      if (log.status !== 'Uncertified' || !log.overtimeDate) {
+        continue;
+      }
+
+      const overtimeDate = new Date(log.overtimeDate);
+      if (overtimeDate >= monthStart && overtimeDate <= monthEnd) {
+        logs.push(log);
+      }
+    }
 
     return logs;
 
@@ -208,33 +248,76 @@ function getTotalBalance_SERVER(employeeId) {
   try {
     const db = getFirestore();
 
-    // Get Active credits
-    const activeBatchesQuery = db.query('creditBatches')
-      .where('employeeId', '==', employeeId)
-      .where('status', '==', 'Active')
-      .get();
+    function toNumber(value) {
+      const num = Number(value);
+      return isNaN(num) || !isFinite(num) ? 0 : num;
+    }
 
+    // Get Active credits
+    const batchDocs = db.getDocuments('creditBatches');
     let activeBalance = 0;
-    activeBatchesQuery.forEach(doc => {
-      activeBalance += doc.obj.remainingHours || 0;
-    });
+
+    for (let i = 0; i < batchDocs.length; i++) {
+      const batch = batchDocs[i].obj;
+      if (!batch || batch.employeeId !== employeeId || batch.status !== 'Active') {
+        continue;
+      }
+
+      const rawRemaining = batch.remainingHours;
+      const hasExplicitRemaining = rawRemaining !== undefined && rawRemaining !== null && rawRemaining !== '';
+
+      let remainingHours = hasExplicitRemaining ? toNumber(rawRemaining) : 0;
+
+      if (!hasExplicitRemaining) {
+        const earnedHours = batch.earnedHours !== undefined ? toNumber(batch.earnedHours) : toNumber(batch.initialHours);
+        const usedHours = toNumber(batch.usedHours);
+        remainingHours = Math.max(0, earnedHours - usedHours);
+      }
+
+      if (remainingHours < 0 || !isFinite(remainingHours)) {
+        remainingHours = 0;
+      }
+
+      activeBalance += remainingHours;
+    }
 
     // Get Uncertified logs
-    const uncertifiedLogsQuery = db.query('overtimeLogs')
-      .where('employeeId', '==', employeeId)
-      .where('status', '==', 'Uncertified')
-      .get();
-
+    const logDocs = db.getDocuments('overtimeLogs');
     let uncertifiedBalance = 0;
-    uncertifiedLogsQuery.forEach(doc => {
-      uncertifiedBalance += doc.obj.earnedHours || 0;
-    });
+
+    for (let i = 0; i < logDocs.length; i++) {
+      const log = logDocs[i].obj;
+      if (!log || log.employeeId !== employeeId || log.status !== 'Uncertified') {
+        continue;
+      }
+
+      if (log.isDeleted === true || log.isCancelled === true) {
+        continue;
+      }
+
+      let earnedHours = 0;
+      if (log.earnedHours !== undefined && log.earnedHours !== null && log.earnedHours !== '') {
+        earnedHours = toNumber(log.earnedHours);
+      }
+
+      if (earnedHours <= 0 && log.hoursWorked !== undefined && log.hoursWorked !== null && log.hoursWorked !== '') {
+        earnedHours = toNumber(log.hoursWorked);
+      }
+
+      if (earnedHours > 0) {
+        uncertifiedBalance += earnedHours;
+      }
+    }
+
+    activeBalance = Math.max(0, activeBalance);
+    uncertifiedBalance = Math.max(0, uncertifiedBalance);
+    const totalBalance = activeBalance + uncertifiedBalance;
 
     return {
       success: true,
-      active: activeBalance,
-      uncertified: uncertifiedBalance,
-      total: activeBalance + uncertifiedBalance
+      active: Number(activeBalance.toFixed(2)),
+      uncertified: Number(uncertifiedBalance.toFixed(2)),
+      total: Number(totalBalance.toFixed(2))
     };
 
   } catch (error) {
@@ -342,7 +425,7 @@ function logOvertimeBatch_SERVER(data) {
 
     // Check monthly cap
     const existingLogs = getUncertifiedOvertimeForMonth_SERVER(data.employeeId, data.month, data.year);
-    const existingMonthTotal = existingLogs.reduce((sum, log) => sum + log.earnedHours, 0);
+    const existingMonthTotal = existingLogs.reduce((sum, log) => sum + Number(log.earnedHours || 0), 0);
     const newEntriesTotal = data.entries.reduce((sum, entry) => sum + entry.cocEarned, 0);
     const totalMonthly = existingMonthTotal + newEntriesTotal;
 
@@ -467,7 +550,7 @@ function generateCertificate_SERVER(data) {
       const logDoc = db.getDocument('overtimeLogs/' + logId);
       if (logDoc && logDoc.obj.status === 'Uncertified' && logDoc.obj.employeeId === data.employeeId) {
         logs.push(logDoc.obj);
-        totalEarnedHours += logDoc.obj.earnedHours;
+        totalEarnedHours += Number(logDoc.obj.earnedHours || 0);
       }
     });
     
@@ -525,15 +608,15 @@ function generateCertificate_SERVER(data) {
     
     db.createDocument('creditBatches/' + batchId, batchData);
     
-    const batchesQuery = db.query('creditBatches')
-      .where('employeeId', '==', data.employeeId)
-      .where('status', '==', 'Active')
-      .get();
-    
+    const allBatchDocs = db.getDocuments('creditBatches');
     let balanceAfter = 0;
-    batchesQuery.forEach(doc => {
-      balanceAfter += doc.obj.remainingHours;
-    });
+
+    for (let i = 0; i < allBatchDocs.length; i++) {
+      const batch = allBatchDocs[i].obj;
+      if (batch && batch.employeeId === data.employeeId && batch.status === 'Active') {
+        balanceAfter += Number(batch.remainingHours || 0);
+      }
+    }
     
     const ledgerData = {
       ledgerId: ledgerId,
@@ -569,17 +652,26 @@ function logCto_SERVER(data) {
     
     const hoursUsed = parseFloat(data.hoursUsed);
     
-    const batchesQuery = db.query('creditBatches')
-      .where('employeeId', '==', data.employeeId)
-      .where('status', '==', 'Active')
-      .orderBy('expiryDate', 'asc')
-      .get();
-    
+    const batchDocs = db.getDocuments('creditBatches');
     let availableBalance = 0;
     const batches = [];
-    batchesQuery.forEach(doc => {
-      batches.push({id: doc.name.split('/').pop(), data: doc.obj});
-      availableBalance += doc.obj.remainingHours;
+
+    for (let i = 0; i < batchDocs.length; i++) {
+      const doc = batchDocs[i];
+      const batch = doc.obj;
+      if (!batch || batch.employeeId !== data.employeeId || batch.status !== 'Active') {
+        continue;
+      }
+
+      const batchId = doc.name.split('/').pop();
+      batches.push({ id: batchId, data: batch });
+      availableBalance += Number(batch.remainingHours || 0);
+    }
+
+    batches.sort((a, b) => {
+      const dateA = a.data.expiryDate ? new Date(a.data.expiryDate) : new Date('9999-12-31');
+      const dateB = b.data.expiryDate ? new Date(b.data.expiryDate) : new Date('9999-12-31');
+      return dateA - dateB;
     });
     
     if (hoursUsed > availableBalance) {
@@ -756,11 +848,117 @@ function deleteHoliday_SERVER(holidayId) {
   try {
     const db = getFirestore();
     db.deleteDocument('holidays/' + holidayId);
-    
+
     return {
       success: true
     };
-    
+
+  } catch (error) {
+    return {
+      success: false,
+      error: error.toString()
+    };
+  }
+}
+
+function initializeHolidays_SERVER() {
+  try {
+    const db = getFirestore();
+
+    const holidays2024 = [
+      { date: '2024-01-01', name: "New Year's Day", type: 'Regular', isRecurring: true },
+      { date: '2024-02-10', name: 'Chinese New Year', type: 'Special', isRecurring: false },
+      { date: '2024-02-25', name: 'EDSA People Power Revolution Anniversary', type: 'Special', isRecurring: true },
+      { date: '2024-03-28', name: 'Maundy Thursday', type: 'Regular', isRecurring: false },
+      { date: '2024-03-29', name: 'Good Friday', type: 'Regular', isRecurring: false },
+      { date: '2024-03-30', name: 'Black Saturday', type: 'Special', isRecurring: false },
+      { date: '2024-04-09', name: 'Araw ng Kagitingan', type: 'Regular', isRecurring: true },
+      { date: '2024-04-10', name: "Eid'l Fitr", type: 'Regular', isRecurring: false },
+      { date: '2024-05-01', name: 'Labor Day', type: 'Regular', isRecurring: true },
+      { date: '2024-06-12', name: 'Independence Day', type: 'Regular', isRecurring: true },
+      { date: '2024-06-17', name: "Eid'l Adha", type: 'Regular', isRecurring: false },
+      { date: '2024-08-21', name: 'Ninoy Aquino Day', type: 'Special', isRecurring: true },
+      { date: '2024-08-26', name: 'National Heroes Day', type: 'Regular', isRecurring: false },
+      { date: '2024-11-01', name: "All Saints' Day", type: 'Special', isRecurring: true },
+      { date: '2024-11-02', name: 'All Souls\' Day', type: 'Special', isRecurring: true },
+      { date: '2024-11-30', name: 'Bonifacio Day', type: 'Regular', isRecurring: true },
+      { date: '2024-12-08', name: 'Feast of the Immaculate Conception', type: 'Special', isRecurring: true },
+      { date: '2024-12-24', name: 'Christmas Eve', type: 'Special', isRecurring: true },
+      { date: '2024-12-25', name: 'Christmas Day', type: 'Regular', isRecurring: true },
+      { date: '2024-12-30', name: 'Rizal Day', type: 'Regular', isRecurring: true },
+      { date: '2024-12-31', name: 'Last Day of the Year', type: 'Special', isRecurring: true }
+    ];
+
+    const holidays2025 = [
+      { date: '2025-01-01', name: "New Year's Day", type: 'Regular', isRecurring: true },
+      { date: '2025-01-29', name: 'Chinese New Year', type: 'Special', isRecurring: false },
+      { date: '2025-02-25', name: 'EDSA People Power Revolution Anniversary', type: 'Special', isRecurring: true },
+      { date: '2025-04-09', name: 'Araw ng Kagitingan', type: 'Regular', isRecurring: true },
+      { date: '2025-04-17', name: 'Maundy Thursday', type: 'Regular', isRecurring: false },
+      { date: '2025-04-18', name: 'Good Friday', type: 'Regular', isRecurring: false },
+      { date: '2025-04-19', name: 'Black Saturday', type: 'Special', isRecurring: false },
+      { date: '2025-05-01', name: 'Labor Day', type: 'Regular', isRecurring: true },
+      { date: '2025-06-12', name: 'Independence Day', type: 'Regular', isRecurring: true },
+      { date: '2025-08-21', name: 'Ninoy Aquino Day', type: 'Special', isRecurring: true },
+      { date: '2025-08-25', name: 'National Heroes Day', type: 'Regular', isRecurring: false },
+      { date: '2025-11-01', name: "All Saints' Day", type: 'Special', isRecurring: true },
+      { date: '2025-11-02', name: 'All Souls\' Day', type: 'Special', isRecurring: true },
+      { date: '2025-11-30', name: 'Bonifacio Day', type: 'Regular', isRecurring: true },
+      { date: '2025-12-08', name: 'Feast of the Immaculate Conception', type: 'Special', isRecurring: true },
+      { date: '2025-12-24', name: 'Christmas Eve', type: 'Special', isRecurring: true },
+      { date: '2025-12-25', name: 'Christmas Day', type: 'Regular', isRecurring: true },
+      { date: '2025-12-30', name: 'Rizal Day', type: 'Regular', isRecurring: true },
+      { date: '2025-12-31', name: 'Last Day of the Year', type: 'Special', isRecurring: true }
+    ];
+
+    const allHolidays = holidays2024.concat(holidays2025);
+
+    const existingDocs = db.getDocuments('holidays');
+    const existingDates = new Set();
+
+    for (let i = 0; i < existingDocs.length; i++) {
+      const holiday = existingDocs[i].obj;
+      if (holiday && holiday.date) {
+        existingDates.add(holiday.date);
+      }
+    }
+
+    let createdCount = 0;
+    let skippedCount = 0;
+    const createdHolidays = [];
+
+    allHolidays.forEach(holiday => {
+      if (existingDates.has(holiday.date)) {
+        skippedCount++;
+        return;
+      }
+
+      const holidayId = 'HOL_' + Utilities.getUuid();
+      const holidayData = {
+        holidayId: holidayId,
+        date: holiday.date,
+        name: holiday.name,
+        type: holiday.type,
+        isRecurring: holiday.isRecurring || false,
+        createdAt: new Date().toISOString(),
+        createdBy: Session.getActiveUser().getEmail()
+      };
+
+      db.createDocument('holidays/' + holidayId, holidayData);
+
+      createdCount++;
+      createdHolidays.push(`${holiday.date} - ${holiday.name}`);
+      existingDates.add(holiday.date);
+    });
+
+    return {
+      success: true,
+      totalDefined: allHolidays.length,
+      createdCount: createdCount,
+      skippedCount: skippedCount,
+      createdHolidays: createdHolidays
+    };
+
   } catch (error) {
     return {
       success: false,
@@ -1009,7 +1207,7 @@ function migrateHistoricalBalance_SERVER(data) {
     batchesQuery.forEach(doc => {
       const batch = doc.obj;
       if (batch.employeeId === data.employeeId && batch.status === 'Active') {
-        currentBalance += batch.remainingHours || 0;
+        currentBalance += Number(batch.remainingHours || 0);
       }
     });
     
@@ -1017,7 +1215,7 @@ function migrateHistoricalBalance_SERVER(data) {
     logsQuery.forEach(doc => {
       const log = doc.obj;
       if (log.employeeId === data.employeeId && log.status === 'Uncertified') {
-        currentBalance += log.earnedHours || 0;
+        currentBalance += Number(log.earnedHours || 0);
       }
     });
     
@@ -1289,11 +1487,16 @@ function checkEmployeeHasOvertimeLogs_SERVER(employeeId) {
   try {
     const db = getFirestore();
 
-    const logsQuery = db.query('overtimeLogs')
-      .where('employeeId', '==', employeeId)
-      .get();
+    const logDocs = db.getDocuments('overtimeLogs');
+    let hasLogs = false;
 
-    const hasLogs = logsQuery.length > 0;
+    for (let i = 0; i < logDocs.length; i++) {
+      const log = logDocs[i].obj;
+      if (log && log.employeeId === employeeId) {
+        hasLogs = true;
+        break;
+      }
+    }
 
     return {
       success: true,
@@ -1314,23 +1517,31 @@ function dailyForfeitureTask() {
     const db = getFirestore();
     const today = new Date();
     
-    const expiredQuery = db.query('creditBatches')
-      .where('status', '==', 'Active')
-      .where('expiryDate', '<', today.toISOString())
-      .get();
-    
+    const batchDocs = db.getDocuments('creditBatches');
+
     let forfeitedCount = 0;
     let totalForfeitedHours = 0;
-    
-    expiredQuery.forEach(doc => {
+
+    for (let i = 0; i < batchDocs.length; i++) {
+      const doc = batchDocs[i];
       const batch = doc.obj;
+      if (!batch || batch.status !== 'Active' || !batch.expiryDate) {
+        continue;
+      }
+
+      const expiryDate = new Date(batch.expiryDate);
+      if (expiryDate >= today) {
+        continue;
+      }
+
       const batchId = doc.name.split('/').pop();
-      
+      const remainingHours = Number(batch.remainingHours || 0);
+
       db.updateDocument('creditBatches/' + batchId, {
         status: 'Expired',
         expiredAt: today.toISOString()
       });
-      
+
       const ledgerId = 'LEDGER_' + Utilities.getUuid();
       const ledgerData = {
         ledgerId: ledgerId,
@@ -1338,17 +1549,17 @@ function dailyForfeitureTask() {
         transactionDate: today.toISOString(),
         transactionType: 'Forfeited',
         referenceId: batchId,
-        hoursChange: -batch.remainingHours,
+        hoursChange: -remainingHours,
         balanceAfter: 0,
         remarks: `Batch ${batchId} expired`,
         createdAt: today.toISOString()
       };
-      
+
       db.createDocument('ledger/' + ledgerId, ledgerData);
-      
+
       forfeitedCount++;
-      totalForfeitedHours += batch.remainingHours;
-    });
+      totalForfeitedHours += remainingHours;
+    }
     
     Logger.log(`Forfeiture task completed. ${forfeitedCount} batches expired. Total: ${totalForfeitedHours} hours`);
     
@@ -1385,36 +1596,48 @@ function syncReportsToSheet() {
     sheet.appendRow(['']);
     sheet.appendRow(['Employee ID', 'Name', 'Total Balance (hrs)', 'Active Batches', 'Earliest Expiry']);
     
-    const employeesQuery = db.query('employees')
-      .where('isActive', '==', true)
-      .orderBy('lastName')
-      .get();
-    
+    const employeeDocs = db.getDocuments('employees');
+    const batchDocs = db.getDocuments('creditBatches');
+
     const reportData = [];
-    
-    employeesQuery.forEach(empDoc => {
-      const emp = empDoc.obj;
-      
-      const batchesQuery = db.query('creditBatches')
-        .where('employeeId', '==', emp.employeeId)
-        .where('status', '==', 'Active')
-        .orderBy('expiryDate', 'asc')
-        .get();
-      
+
+    const activeEmployees = employeeDocs
+      .map(doc => doc.obj)
+      .filter(emp => emp && emp.isActive)
+      .sort((a, b) => {
+        const lastA = (a.lastName || '').toLowerCase();
+        const lastB = (b.lastName || '').toLowerCase();
+        if (lastA < lastB) return -1;
+        if (lastA > lastB) return 1;
+        return 0;
+      });
+
+    activeEmployees.forEach(emp => {
+      const employeeBatches = batchDocs
+        .filter(doc => {
+          const batch = doc.obj;
+          return batch && batch.employeeId === emp.employeeId && batch.status === 'Active';
+        })
+        .map(doc => doc.obj)
+        .sort((a, b) => {
+          const dateA = a.expiryDate ? new Date(a.expiryDate) : new Date('9999-12-31');
+          const dateB = b.expiryDate ? new Date(b.expiryDate) : new Date('9999-12-31');
+          return dateA - dateB;
+        });
+
       let totalBalance = 0;
       let activeBatches = 0;
       let earliestExpiry = '';
-      
-      batchesQuery.forEach(batchDoc => {
-        const batch = batchDoc.obj;
-        totalBalance += batch.remainingHours;
+
+      employeeBatches.forEach(batch => {
+        totalBalance += Number(batch.remainingHours || 0);
         activeBatches++;
-        
+
         if (!earliestExpiry && batch.expiryDate) {
           earliestExpiry = new Date(batch.expiryDate).toLocaleDateString('en-US', {timeZone: 'Asia/Manila'});
         }
       });
-      
+
       if (totalBalance > 0) {
         reportData.push([
           emp.employeeId,
