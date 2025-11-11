@@ -1,336 +1,126 @@
-let db, auth, currentUser;
-let employeesData = [];
-let unsubscribers = [];
-let librariesData = { offices: [], positions: [] };
-let employeeSearchTerms = { active: '', inactive: '' };
-let librarySearchTerms = { offices: '', positions: '' };
-
-window.Modal = {
-  _instance: null,
-  _callback: null,
-
-  _show(config) {
-    const modalEl = document.getElementById('universalModal');
-    const bodyEl = document.getElementById('universalModalBody');
-    const footerEl = document.getElementById('universalModalFooter');
-
-    bodyEl.innerHTML = `
-      <div class="mb-3">
-        <i class="bi ${config.icon} ${config.iconColor}" style="font-size: 4rem;"></i>
+<!-- Universal Modal for alerts and confirmations -->
+<div class="modal fade" id="universalModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content text-center">
+      <div class="modal-body" id="universalModalBody">
+        <!-- Content injected dynamically -->
       </div>
-      <h5 class="modal-title mb-3">${config.title}</h5>
-      <p class="text-muted mb-0">${config.message}</p>
-    `;
-
-    footerEl.innerHTML = '';
-    config.buttons.forEach(btn => {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = `btn ${btn.class} px-4`;
-      button.textContent = btn.text;
-      
-      if (btn.dismiss) {
-        button.setAttribute('data-bs-dismiss', 'modal');
-      }
-      
-      if (btn.callback) {
-        button.onclick = () => {
-          if (this._instance) {
-            this._instance.hide();
-          }
-          btn.callback();
-        };
-      }
-      
-      footerEl.appendChild(button);
-    });
-
-    if (this._instance) {
-      this._instance.dispose();
-    }
-    
-    this._instance = new bootstrap.Modal(modalEl, {
-      backdrop: config.backdrop !== false ? 'static' : true,
-      keyboard: config.keyboard !== false
-    });
-
-    if (config.clickOutsideToClose) {
-      modalEl.addEventListener('click', (e) => {
-        if (e.target === modalEl) {
-          this._instance.hide();
-        }
-      });
-    }
-
-    if (config.keyboard !== false) {
-      const escHandler = (e) => {
-        if (e.key === 'Escape' && this._instance) {
-          this._instance.hide();
-          modalEl.removeEventListener('keydown', escHandler);
-        }
-      };
-      modalEl.addEventListener('keydown', escHandler);
-    }
-
-    this._instance.show();
-  },
-
-  success(title, message, callback) {
-    this._show({
-      title: title || 'Success!',
-      message: message || '',
-      icon: 'bi-check-circle-fill',
-      iconColor: 'text-success',
-      buttons: [
-        { text: 'OK', class: 'btn-success', dismiss: true, callback: callback }
-      ],
-      keyboard: true,
-      clickOutsideToClose: false
-    });
-  },
-
-  error(title, message, callback) {
-    this._show({
-      title: title || 'Error',
-      message: message || '',
-      icon: 'bi-x-circle-fill',
-      iconColor: 'text-danger',
-      buttons: [
-        { text: 'OK', class: 'btn-danger', dismiss: true, callback: callback }
-      ],
-      keyboard: true,
-      clickOutsideToClose: false
-    });
-  },
-
-  warning(title, message, callback) {
-    this._show({
-      title: title || 'Warning',
-      message: message || '',
-      icon: 'bi-exclamation-triangle-fill',
-      iconColor: 'text-warning',
-      buttons: [
-        { text: 'OK', class: 'btn-warning', dismiss: true, callback: callback }
-      ],
-      keyboard: true,
-      clickOutsideToClose: false
-    });
-  },
-
-  info(title, message, callback) {
-    this._show({
-      title: title || 'Information',
-      message: message || '',
-      icon: 'bi-info-circle-fill',
-      iconColor: 'text-info',
-      buttons: [
-        { text: 'OK', class: 'btn-info', dismiss: true, callback: callback }
-      ],
-      keyboard: true,
-      clickOutsideToClose: false
-    });
-  },
-
-  confirm(title, message, onConfirm, onCancel) {
-    this._show({
-      title: title || 'Confirm Action',
-      message: message || 'Are you sure?',
-      icon: 'bi-question-circle-fill',
-      iconColor: 'text-warning',
-      buttons: [
-        { text: 'Cancel', class: 'btn-secondary', dismiss: true, callback: onCancel },
-        { text: 'Yes, Continue', class: 'btn-warning', callback: onConfirm }
-      ],
-      keyboard: true,
-      clickOutsideToClose: false
-    });
-  }
-};
-
-async function initFirebase() {
-  try {
-    console.log('Starting Firebase initialization...');
-    
-    const result = await new Promise((resolve, reject) => {
-      google.script.run
-        .withSuccessHandler(resolve)
-        .withFailureHandler(reject)
-        .getFirebaseConfigAndToken();
-    });
-
-    console.log('Received Firebase config and token');
-
-    const app = window.initializeApp(result.config);
-    auth = window.getAuth(app);
-    db = window.getFirestore(app);
-
-    console.log('Signing in with custom token...');
-    await window.signInWithCustomToken(auth, result.token);
-    currentUser = auth.currentUser;
-    
-    console.log('Firebase authentication successful');
-    document.getElementById('userEmail').innerHTML = `<i class="bi bi-person-circle"></i> ${result.userEmail}`;
-
-    loadAllData();
-  } catch (error) {
-    console.error('Firebase init error:', error);
-    Modal.error('Firebase Error', 'Error initializing Firebase: ' + error.message);
-  }
-}
-
-function loadAllData() {
-  loadEmployees();
-  loadDashboard();
-}
-
-window.db = db;
-window.employeesData = employeesData;
-window.unsubscribers = unsubscribers;
-window.librariesData = librariesData;
-window.employeeSearchTerms = employeeSearchTerms;
-window.librarySearchTerms = librarySearchTerms;
-
-document.addEventListener('DOMContentLoaded', () => {
-  initFirebase();
-
-  document.querySelector('a[href="#active-employees-tab"]')?.addEventListener('shown.bs.tab', function() {
-    window.renderEmployeesTable('active');
-  });
-
-  document.querySelector('a[href="#inactive-employees-tab"]')?.addEventListener('shown.bs.tab', function() {
-    window.renderEmployeesTable('inactive');
-  });
-
-  document.querySelector('a[href="#offices-tab"]')?.addEventListener('shown.bs.tab', function() {
-    window.renderLibraryTable('offices');
-  });
-
-  document.querySelector('a[href="#positions-tab"]')?.addEventListener('shown.bs.tab', function() {
-    window.renderLibraryTable('positions');
-  });
-
-  document.querySelectorAll('#employeeTabs a[data-bs-toggle="tab"], #libraryTabs a[data-bs-toggle="tab"]').forEach(tabEl => {
-    tabEl.addEventListener('click', function (event) {
-      event.preventDefault();
-      try {
-        const tab = new bootstrap.Tab(this);
-        tab.show();
-      } catch (e) {
-        console.error('Error showing tab:', e);
-      }
-    });
-  });
-
-  document.querySelectorAll('.dropdown-item').forEach(item => {
-    item.addEventListener('click', function() {
-      this.blur();
-      const dropdown = this.closest('.dropdown');
-      if (dropdown) {
-        const toggle = dropdown.querySelector('[data-bs-toggle="dropdown"]');
-        if (toggle) {
-          bootstrap.Dropdown.getInstance(toggle)?.hide();
-        }
-      }
-    });
-  });
-
-  document.querySelectorAll('a[data-page]').forEach(link => {
-    link.addEventListener('click', function(e) {
-      e.preventDefault();
-      const page = this.dataset.page;
-
-      document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'));
-      document.getElementById(`page-${page}`).classList.add('active');
-
-      document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-      this.classList.add('active');
-
-      const dropdownMenu = this.closest('.dropdown-menu');
-      if (dropdownMenu) {
-        const dropdownToggle = dropdownMenu.previousElementSibling;
-        if (dropdownToggle && dropdownToggle.classList.contains('dropdown-toggle')) {
-          dropdownToggle.classList.add('active');
-        }
-      }
-
-      if (page === 'employees') {
-        const activeTab = document.querySelector('a[href="#active-employees-tab"]');
-        if (activeTab) {
-          const tab = new bootstrap.Tab(activeTab);
-          tab.show();
-        }
-      } else if (page === 'libraries') {
-        const officesTab = document.querySelector('a[href="#offices-tab"]');
-        if (officesTab) {
-          const tab = new bootstrap.Tab(officesTab);
-          tab.show();
-        }
-      }
-    });
-  });
-});
-
-function loadDashboard() {
-  const batchesQ = window.query(window.collection(db, 'creditBatches'), window.where('status', '==', 'Active'));
-  const logsQ = window.query(window.collection(db, 'overtimeLogs'), window.where('status', '==', 'Uncertified'));
-
-  window.onSnapshot(batchesQ, (snapshot) => {
-    let totalLiability = 0;
-    let expiringSoon = 0;
-    const today = new Date();
-    const thirtyDays = new Date(today);
-    thirtyDays.setDate(today.getDate() + 30);
-
-    snapshot.forEach((doc) => {
-      const batch = doc.data();
-      totalLiability += batch.remainingHours;
-      const expiryDate = new Date(batch.expiryDate);
-      if (expiryDate <= thirtyDays) {
-        expiringSoon += batch.remainingHours;
-      }
-    });
-
-    document.getElementById('stat-total-liability').textContent = totalLiability.toFixed(2);
-    document.getElementById('stat-expiring-soon').textContent = expiringSoon.toFixed(2);
-    
-    renderAlerts(expiringSoon, snapshot.docs.length);
-  });
-
-  window.onSnapshot(logsQ, (snapshot) => {
-    document.getElementById('stat-uncertified').textContent = snapshot.size;
-  });
-
-  const empQ = window.query(window.collection(db, 'employees'), window.where('isActive', '==', true));
-  window.onSnapshot(empQ, (snapshot) => {
-    document.getElementById('stat-active-employees').textContent = snapshot.size;
-  });
-}
-
-function renderAlerts(expiringSoon, totalBatches) {
-  const container = document.getElementById('alerts-container');
-  let html = '';
-
-  if (expiringSoon > 0) {
-    html += `
-      <div class="alert-item warning">
-        <i class="bi bi-exclamation-triangle-fill"></i>
-        <strong>Expiring Credits:</strong> ${expiringSoon.toFixed(2)} hours will expire in the next 30 days
+      <div class="modal-footer justify-content-center border-0 pt-0" id="universalModalFooter">
+        <!-- Buttons injected dynamically -->
       </div>
-    `;
-  }
+    </div>
+  </div>
+</div>
 
-  if (totalBatches > 50) {
-    html += `
-      <div class="alert-item info">
-        <i class="bi bi-info-circle-fill"></i>
-        <strong>Active Batches:</strong> There are ${totalBatches} active credit batches in the system
+<!-- Employee Modal -->
+<div class="modal fade" id="employeeModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="employeeModalTitle">Add Employee</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
-    `;
-  }
+      <div class="modal-body">
+        <form id="employeeForm">
+          <input type="hidden" id="emp-id-hidden">
+          <div class="mb-3" id="emp-id-display" style="display: none;">
+            <label class="form-label">Employee ID</label>
+            <input type="text" class="form-control" id="emp-id-show" readonly>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">First Name <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="emp-fname" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Last Name <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="emp-lname" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Office <span class="text-danger">*</span></label>
+            <select class="form-select" id="emp-office" required></select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Position <span class="text-danger">*</span></label>
+            <select class="form-select" id="emp-position" required></select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Status</label>
+            <select class="form-select" id="emp-status">
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
 
-  if (html === '') {
-    html = '<p class="text-muted">No alerts at this time</p>';
-  }
+<!-- Holiday Modal -->
+<div class="modal fade" id="holidayModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Add Holiday</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="holidayForm">
+          <div class="mb-3">
+            <label class="form-label">Date <span class="text-danger">*</span></label>
+            <input type="date" class="form-control" id="holiday-date" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Holiday Name <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="holiday-name" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Type</label>
+            <select class="form-select" id="holiday-type">
+              <option value="Regular">Regular Holiday</option>
+              <option value="Special">Special Non-Working</option>
+            </select>
+          </div>
+          <div class="mb-3 form-check">
+            <input type="checkbox" class="form-check-input" id="holiday-recurring">
+            <label class="form-check-label" for="holiday-recurring">Recurring (Annual)</label>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
 
-  container.innerHTML = html;
-}
+<!-- Library (Office/Position) Modal -->
+<div class="modal fade" id="libraryModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="libraryModalTitle">Add Item</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="libraryForm">
+          <input type="hidden" id="library-type">
+          <input type="hidden" id="library-id">
+          <div class="mb-3">
+            <label class="form-label" id="library-label">Name <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="library-name" required>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
