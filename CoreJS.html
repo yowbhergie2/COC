@@ -1,9 +1,14 @@
-let db, auth, currentUser;
-let employeesData = [];
-let unsubscribers = [];
-let librariesData = { offices: [], positions: [] };
-let employeeSearchTerms = { active: '', inactive: '' };
-let librarySearchTerms = { offices: '', positions: '' };
+<!-- --- FIX --- -->
+<!-- Removed duplicate 'let' declarations. -->
+<!-- All global variables will be attached to the 'window' object. -->
+<!-- Note: The declarations for employeesData, unsubscribers, etc., -->
+<!--       are still needed ONCE. We'll add them here to window. -->
+window.employeesData = [];
+window.unsubscribers = [];
+window.librariesData = { offices: [], positions: [] };
+window.employeeSearchTerms = { active: '', inactive: '' };
+window.librarySearchTerms = { offices: '', positions: '' };
+
 
 window.Modal = {
   _instance: null,
@@ -160,13 +165,20 @@ async function initFirebase() {
 
     console.log('Received Firebase config and token');
     
-    const app = initializeApp(result.config);
-    auth = getAuth(app);
-    db = getFirestore(app);
+    // --- FIX ---
+    // Use the globally available 'initializeApp' from window
+    const app = window.initializeApp(result.config);
+    
+    // --- FIX ---
+    // Declare and assign db, auth, and currentUser directly
+    // to the 'window' object. This makes them globally accessible
+    // to all other included JS files and fixes the scope issue.
+    window.auth = window.getAuth(app);
+    window.db = window.getFirestore(app);
 
     console.log('Signing in with custom token...');
-    await signInWithCustomToken(auth, result.token);
-    currentUser = auth.currentUser;
+    await window.signInWithCustomToken(window.auth, result.token);
+    window.currentUser = window.auth.currentUser;
     
     console.log('Firebase authentication successful');
     document.getElementById('userEmail').innerHTML = `<i class="bi bi-person-circle"></i> ${result.userEmail}`;
@@ -179,6 +191,12 @@ async function initFirebase() {
 }
 
 function loadAllData() {
+  // --- FIX ---
+  // Check window.db to ensure initialization is complete
+  if (!window.db) {
+    console.error("Firestore (window.db) is not initialized!");
+    return;
+  }
   loadEmployees();
   loadDashboard();
 }
@@ -265,10 +283,10 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function loadDashboard() {
-  const batchesQ = query(collection(db, 'creditBatches'), where('status', '==', 'Active'));
-  const logsQ = query(collection(db, 'overtimeLogs'), where('status', '==', 'Uncertified'));
+  const batchesQ = window.query(window.collection(window.db, 'creditBatches'), window.where('status', '==', 'Active'));
+  const logsQ = window.query(window.collection(window.db, 'overtimeLogs'), window.where('status', '==', 'Uncertified'));
 
-  onSnapshot(batchesQ, (snapshot) => {
+  window.onSnapshot(batchesQ, (snapshot) => {
     let totalLiability = 0;
     let expiringSoon = 0;
     const today = new Date();
@@ -290,12 +308,12 @@ function loadDashboard() {
     renderAlerts(expiringSoon, snapshot.docs.length);
   });
 
-  onSnapshot(logsQ, (snapshot) => {
+  window.onSnapshot(logsQ, (snapshot) => {
     document.getElementById('stat-uncertified').textContent = snapshot.size;
   });
 
-  const empQ = query(collection(db, 'employees'), where('isActive', '==', true));
-  onSnapshot(empQ, (snapshot) => {
+  const empQ = window.query(window.collection(window.db, 'employees'), window.where('isActive', '==', true));
+  window.onSnapshot(empQ, (snapshot) => {
     document.getElementById('stat-active-employees').textContent = snapshot.size;
   });
 }
