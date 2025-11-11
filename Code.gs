@@ -248,37 +248,15 @@ function getTotalBalance_SERVER(employeeId) {
   try {
     const db = getFirestore();
 
-    function toNumber(value) {
-      const num = Number(value);
-      return isNaN(num) || !isFinite(num) ? 0 : num;
-    }
-
     // Get Active credits
     const batchDocs = db.getDocuments('creditBatches');
     let activeBalance = 0;
 
     for (let i = 0; i < batchDocs.length; i++) {
       const batch = batchDocs[i].obj;
-      if (!batch || batch.employeeId !== employeeId || batch.status !== 'Active') {
-        continue;
+      if (batch && batch.employeeId === employeeId && batch.status === 'Active') {
+        activeBalance += Number(batch.remainingHours || 0);
       }
-
-      const rawRemaining = batch.remainingHours;
-      const hasExplicitRemaining = rawRemaining !== undefined && rawRemaining !== null && rawRemaining !== '';
-
-      let remainingHours = hasExplicitRemaining ? toNumber(rawRemaining) : 0;
-
-      if (!hasExplicitRemaining) {
-        const earnedHours = batch.earnedHours !== undefined ? toNumber(batch.earnedHours) : toNumber(batch.initialHours);
-        const usedHours = toNumber(batch.usedHours);
-        remainingHours = Math.max(0, earnedHours - usedHours);
-      }
-
-      if (remainingHours < 0 || !isFinite(remainingHours)) {
-        remainingHours = 0;
-      }
-
-      activeBalance += remainingHours;
     }
 
     // Get Uncertified logs
@@ -287,31 +265,10 @@ function getTotalBalance_SERVER(employeeId) {
 
     for (let i = 0; i < logDocs.length; i++) {
       const log = logDocs[i].obj;
-      if (!log || log.employeeId !== employeeId || log.status !== 'Uncertified') {
-        continue;
-      }
-
-      if (log.isDeleted === true || log.isCancelled === true) {
-        continue;
-      }
-
-      let earnedHours = 0;
-      if (log.earnedHours !== undefined && log.earnedHours !== null && log.earnedHours !== '') {
-        earnedHours = toNumber(log.earnedHours);
-      }
-
-      if (earnedHours <= 0 && log.hoursWorked !== undefined && log.hoursWorked !== null && log.hoursWorked !== '') {
-        earnedHours = toNumber(log.hoursWorked);
-      }
-
-      if (earnedHours > 0) {
-        uncertifiedBalance += earnedHours;
+      if (log && log.employeeId === employeeId && log.status === 'Uncertified') {
+        uncertifiedBalance += Number(log.earnedHours || 0);
       }
     }
-
-    activeBalance = Math.max(0, activeBalance);
-    uncertifiedBalance = Math.max(0, uncertifiedBalance);
-    const totalBalance = activeBalance + uncertifiedBalance;
 
     return {
       success: true,

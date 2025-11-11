@@ -3135,64 +3135,6 @@
     const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
                         'July', 'August', 'September', 'October', 'November', 'December'];
     const historicalBalanceCache = new Map();
-    let monthStatusHideTimer = null;
-
-    function setMonthStatus(message, variant = 'muted', showSpinner = false) {
-      const statusEl = document.getElementById('ot-month-status');
-      if (!statusEl) return;
-
-      statusEl.classList.remove('d-none', 'text-muted', 'text-success', 'text-danger');
-
-      let variantClass = 'text-muted';
-      if (variant === 'success') {
-        variantClass = 'text-success';
-      } else if (variant === 'danger') {
-        variantClass = 'text-danger';
-      }
-
-      statusEl.classList.add(variantClass);
-      statusEl.innerHTML = showSpinner
-        ? `<span class="spinner-border spinner-border-sm align-middle me-1" role="status" aria-hidden="true"></span>${message}`
-        : message;
-    }
-
-    function hideMonthStatus(delay = 0) {
-      const statusEl = document.getElementById('ot-month-status');
-      if (!statusEl) return;
-
-      if (monthStatusHideTimer) {
-        clearTimeout(monthStatusHideTimer);
-        monthStatusHideTimer = null;
-      }
-
-      const clearStatus = () => {
-        statusEl.classList.add('d-none');
-        statusEl.innerHTML = '';
-        statusEl.classList.remove('text-muted', 'text-success', 'text-danger');
-      };
-
-      if (delay > 0) {
-        monthStatusHideTimer = setTimeout(clearStatus, delay);
-      } else {
-        clearStatus();
-      }
-    }
-
-    function setMonthLoadingState(isLoading) {
-      const monthSelect = document.getElementById('ot-month');
-      if (!monthSelect) return;
-
-      if (isLoading) {
-        monthSelect.setAttribute('data-loading', 'true');
-        monthSelect.setAttribute('disabled', 'disabled');
-        setMonthStatus('Checking month availability...', 'muted', true);
-      } else {
-        monthSelect.removeAttribute('data-loading');
-        monthSelect.removeAttribute('disabled');
-        setMonthStatus('Month availability updated.', 'success');
-        hideMonthStatus(2000);
-      }
-    }
 
     function resetMonthOption(option) {
       if (option.value === '') return;
@@ -3260,21 +3202,15 @@
         return;
       }
 
-      hideMonthStatus();
-      monthSelect.removeAttribute('data-loading');
-      monthSelect.removeAttribute('disabled');
-
       Array.from(monthSelect.options).forEach(resetMonthOption);
 
       if (!employeeId || !yearInput) {
-        hideMonthStatus();
-        monthSelect.removeAttribute('disabled');
         ensureValidMonthSelection(monthSelect);
         updateOvertimeContext();
         return;
       }
 
-      const year = parseInt(yearInput, 10);
+      const year = parseInt(yearInput);
       applyFutureStates(monthSelect, year);
       ensureValidMonthSelection(monthSelect);
 
@@ -3283,14 +3219,11 @@
       if (cachedMonths) {
         applyHistoricalStates(monthSelect, cachedMonths);
         ensureValidMonthSelection(monthSelect);
-        monthSelect.removeAttribute('disabled');
-        hideMonthStatus();
         updateOvertimeContext();
         return;
       }
 
       try {
-        setMonthLoadingState(true);
         const histResult = await new Promise((resolve, reject) => {
           google.script.run
             .withSuccessHandler(resolve)
@@ -3301,16 +3234,11 @@
         const historicalMonths = Array.isArray(histResult.months) ? histResult.months : [];
         historicalBalanceCache.set(cacheKey, historicalMonths);
         applyHistoricalStates(monthSelect, historicalMonths);
-        ensureValidMonthSelection(monthSelect);
-        setMonthLoadingState(false);
       } catch (error) {
         console.error('Error updating month options:', error);
-        monthSelect.removeAttribute('data-loading');
-        monthSelect.removeAttribute('disabled');
-        setMonthStatus('Failed to load month availability. Please try again.', 'danger');
       } finally {
-        updateOvertimeContext();
         ensureValidMonthSelection(monthSelect);
+        updateOvertimeContext();
       }
     };
 
