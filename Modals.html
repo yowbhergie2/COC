@@ -1,66 +1,85 @@
-<!-- Universal Modal for alerts and confirmations -->
-<div class="modal fade" id="universalModal" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content text-center">
-      <div class="modal-body" id="universalModalBody">
-        <!-- Content injected dynamically -->
-      </div>
-      <div class="modal-footer justify-content-center border-0 pt-0" id="universalModalFooter">
-        <!-- Buttons injected dynamically -->
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Employee Modal -->
 <div class="modal fade" id="employeeModal" tabindex="-1">
-  <div class="modal-dialog">
+  <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="employeeModalTitle">Add Employee</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <form id="employeeForm">
+        <form id="employeeForm" novalidate>
           <input type="hidden" id="emp-id-hidden">
-          <div class="mb-3" id="emp-id-display" style="display: none;">
-            <label class="form-label">Employee ID</label>
-            <input type="text" class="form-control" id="emp-id-show" readonly>
+          <div id="emp-id-display" class="alert alert-info mb-3" style="display: none;">
+            <strong>Employee ID:</strong> <span id="emp-id-text"></span>
           </div>
-          <div class="mb-3">
-            <label class="form-label">First Name <span class="text-danger">*</span></label>
-            <input type="text" class="form-control" id="emp-fname" required>
+          <div class="row">
+            <div class="col-md-4 mb-3">
+              <label class="form-label">First Name <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="emp-fname" required>
+              <div class="invalid-feedback">First name is required</div>
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Middle Name</label>
+              <input type="text" class="form-control" id="emp-mname">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Last Name <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="emp-lname" required>
+              <div class="invalid-feedback">Last name is required</div>
+            </div>
           </div>
-          <div class="mb-3">
-            <label class="form-label">Last Name <span class="text-danger">*</span></label>
-            <input type="text" class="form-control" id="emp-lname" required>
+          <div class="row">
+            <div class="col-md-3 mb-3">
+              <label class="form-label">Suffix</label>
+              <select class="form-select" id="emp-suffix">
+                <option value="">None</option>
+                <option value="Jr.">Jr.</option>
+                <option value="Sr.">Sr.</option>
+                <option value="II">II</option>
+                <option value="III">III</option>
+                <option value="IV">IV</option>
+                <option value="V">V</option>
+              </select>
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Office <span class="text-danger">*</span></label>
+              <select class="form-select" id="emp-office" required>
+                <option value="">Select Office</option>
+              </select>
+              <div class="invalid-feedback">Please select an office</div>
+            </div>
+            <div class="col-md-5 mb-3">
+              <label class="form-label">Position <span class="text-danger">*</span></label>
+              <select class="form-select" id="emp-position" required>
+                <option value="">Select Position</option>
+              </select>
+              <div class="invalid-feedback">Please select a position</div>
+            </div>
           </div>
-          <div class="mb-3">
-            <label class="form-label">Office <span class="text-danger">*</span></label>
-            <select class="form-select" id="emp-office" required></select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Position <span class="text-danger">*</span></label>
-            <select class="form-select" id="emp-position" required></select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Status</label>
-            <select class="form-select" id="emp-status">
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
-            </select>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-            <button type="submit" class="btn btn-primary">Save</button>
+          <div class="row">
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Status <span class="text-danger">*</span></label>
+              <select class="form-select" id="emp-status" required>
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+              </select>
+              <div class="invalid-feedback">Please select status</div>
+            </div>
           </div>
         </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="saveEmployeeBtn" onclick="saveEmployee()">
+          <span class="btn-text">Save</span>
+          <span class="spinner-border spinner-border-sm d-none ms-2" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </span>
+        </button>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Holiday Modal -->
 <div class="modal fade" id="holidayModal" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">
@@ -71,35 +90,36 @@
       <div class="modal-body">
         <form id="holidayForm">
           <div class="mb-3">
-            <label class="form-label">Date <span class="text-danger">*</span></label>
-            <input type="date" class="form-control" id="holiday-date" required>
+            <label class="form-label">Date</label>
+            <input type="date" class="form-control" id="hol-date" required>
           </div>
           <div class="mb-3">
-            <label class="form-label">Holiday Name <span class="text-danger">*</span></label>
-            <input type="text" class="form-control" id="holiday-name" required>
+            <label class="form-label">Holiday Name</label>
+            <input type="text" class="form-control" id="hol-name" required>
           </div>
           <div class="mb-3">
             <label class="form-label">Type</label>
-            <select class="form-select" id="holiday-type">
+            <select class="form-select" id="hol-type" required>
               <option value="Regular">Regular Holiday</option>
               <option value="Special">Special Non-Working</option>
             </select>
           </div>
-          <div class="mb-3 form-check">
-            <input type="checkbox" class="form-check-input" id="holiday-recurring">
-            <label class="form-check-label" for="holiday-recurring">Recurring (Annual)</label>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-            <button type="submit" class="btn btn-primary">Save</button>
+          <div class="mb-3">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="hol-recurring">
+              <label class="form-check-label" for="hol-recurring">Recurring Annual Holiday</label>
+            </div>
           </div>
         </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="saveHoliday()">Save</button>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Library (Office/Position) Modal -->
 <div class="modal fade" id="libraryModal" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">
@@ -109,17 +129,28 @@
       </div>
       <div class="modal-body">
         <form id="libraryForm">
-          <input type="hidden" id="library-type">
-          <input type="hidden" id="library-id">
+          <input type="hidden" id="lib-item-id">
+          <input type="hidden" id="lib-type">
           <div class="mb-3">
-            <label class="form-label" id="library-label">Name <span class="text-danger">*</span></label>
-            <input type="text" class="form-control" id="library-name" required>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-            <button type="submit" class="btn btn-primary">Save</button>
+            <label class="form-label" id="libraryItemLabel">Name</label>
+            <input type="text" class="form-control" id="lib-name" required>
           </div>
         </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="saveLibraryItem()">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="universalModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-body text-center p-4" id="universalModalBody">
+      </div>
+      <div class="modal-footer border-0 justify-content-center" id="universalModalFooter">
       </div>
     </div>
   </div>
