@@ -1,7 +1,3 @@
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-import { getAuth, signInWithCustomToken } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-import { getFirestore, collection, query, where, orderBy, onSnapshot, doc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
-
 let db, auth, currentUser;
 let employeesData = [];
 let unsubscribers = [];
@@ -163,13 +159,13 @@ async function initFirebase() {
     });
 
     console.log('Received Firebase config and token');
-    
-    const app = initializeApp(result.config);
-    auth = getAuth(app);
-    db = getFirestore(app);
+
+    const app = window.initializeApp(result.config);
+    auth = window.getAuth(app);
+    db = window.getFirestore(app);
 
     console.log('Signing in with custom token...');
-    await signInWithCustomToken(auth, result.token);
+    await window.signInWithCustomToken(auth, result.token);
     currentUser = auth.currentUser;
     
     console.log('Firebase authentication successful');
@@ -275,10 +271,10 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function loadDashboard() {
-  const batchesQ = query(collection(db, 'creditBatches'), where('status', '==', 'Active'));
-  const logsQ = query(collection(db, 'overtimeLogs'), where('status', '==', 'Uncertified'));
+  const batchesQ = window.query(window.collection(db, 'creditBatches'), window.where('status', '==', 'Active'));
+  const logsQ = window.query(window.collection(db, 'overtimeLogs'), window.where('status', '==', 'Uncertified'));
 
-  onSnapshot(batchesQ, (snapshot) => {
+  window.onSnapshot(batchesQ, (snapshot) => {
     let totalLiability = 0;
     let expiringSoon = 0;
     const today = new Date();
@@ -300,12 +296,12 @@ function loadDashboard() {
     renderAlerts(expiringSoon, snapshot.docs.length);
   });
 
-  onSnapshot(logsQ, (snapshot) => {
+  window.onSnapshot(logsQ, (snapshot) => {
     document.getElementById('stat-uncertified').textContent = snapshot.size;
   });
 
-  const empQ = query(collection(db, 'employees'), where('isActive', '==', true));
-  onSnapshot(empQ, (snapshot) => {
+  const empQ = window.query(window.collection(db, 'employees'), window.where('isActive', '==', true));
+  window.onSnapshot(empQ, (snapshot) => {
     document.getElementById('stat-active-employees').textContent = snapshot.size;
   });
 }
