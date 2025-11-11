@@ -1,7 +1,9 @@
 function loadEmployees() {
   const db = window.db;
-  const q = query(collection(db, 'employees'), orderBy('lastName'));
-  const unsubscribe = onSnapshot(q, (snapshot) => {
+  // --- FIX ---
+  const q = window.query(window.collection(db, 'employees'), window.orderBy('lastName'));
+  const unsubscribe = window.onSnapshot(q, (snapshot) => {
+  // --- END FIX ---
     window.employeesData = [];
     snapshot.forEach((doc) => {
       window.employeesData.push({ id: doc.id, ...doc.data() });
@@ -294,12 +296,14 @@ function renderEmployeesWithoutHistoricalBalance() {
   const activeEmployees = window.employeesData.filter(emp => emp.isActive);
 
   const db = window.db;
-  const q = query(
-    collection(db, 'creditBatches'),
-    where('source', '==', 'Historical')
+  // --- FIX ---
+  const q = window.query(
+    window.collection(db, 'creditBatches'),
+    window.where('source', '==', 'Historical')
   );
 
-  onSnapshot(q, (snapshot) => {
+  window.onSnapshot(q, (snapshot) => {
+  // --- END FIX ---
     const employeesWithHist = new Set();
     snapshot.forEach(doc => {
       const batch = doc.data();
@@ -323,4 +327,3 @@ function renderEmployeesWithoutHistoricalBalance() {
     }
   });
 }
-
