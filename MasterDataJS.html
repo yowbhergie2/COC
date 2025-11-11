@@ -862,7 +862,8 @@ document.getElementById('historicalForm').addEventListener('submit', async (e) =
 });
 
 document.addEventListener('click', function(e) {
-  const container = document.querySelector('#hist-employee-filter-search')?.closest('.searchable-select-container');
+  const searchInput = document.querySelector('#hist-employee-filter-search');
+  const container = searchInput ? searchInput.closest('.searchable-select-container') : null;
   if (container && !container.contains(e.target)) {
     hideHistoricalEmployeeFilterDropdown();
   }

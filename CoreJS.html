@@ -1,8 +1,8 @@
-<!-- --- FIX --- -->
-<!-- Removed duplicate 'let' declarations. -->
-<!-- All global variables will be attached to the 'window' object. -->
-<!-- Note: The declarations for employeesData, unsubscribers, etc., -->
-<!--       are still needed ONCE. We'll add them here to window. -->
+// --- FIX ---
+// Removed duplicate 'let' declarations.
+// All global variables will be attached to the 'window' object.
+// Note: The declarations for employeesData, unsubscribers, etc.,
+//       are still needed ONCE. We'll add them here to window.
 window.employeesData = [];
 window.unsubscribers = [];
 window.librariesData = { offices: [], positions: [] };
@@ -205,21 +205,33 @@ function loadAllData() {
 document.addEventListener('DOMContentLoaded', () => {
   initFirebase();
 
-  document.querySelector('a[href="#active-employees-tab"]')?.addEventListener('shown.bs.tab', function() {
-    window.renderEmployeesTable('active');
-  });
+  const activeEmployeesTab = document.querySelector('a[href="#active-employees-tab"]');
+  if (activeEmployeesTab) {
+    activeEmployeesTab.addEventListener('shown.bs.tab', function() {
+      window.renderEmployeesTable('active');
+    });
+  }
 
-  document.querySelector('a[href="#inactive-employees-tab"]')?.addEventListener('shown.bs.tab', function() {
-    window.renderEmployeesTable('inactive');
-  });
+  const inactiveEmployeesTab = document.querySelector('a[href="#inactive-employees-tab"]');
+  if (inactiveEmployeesTab) {
+    inactiveEmployeesTab.addEventListener('shown.bs.tab', function() {
+      window.renderEmployeesTable('inactive');
+    });
+  }
 
-  document.querySelector('a[href="#offices-tab"]')?.addEventListener('shown.bs.tab', function() {
-    window.renderLibraryTable('offices');
-  });
+  const officesTab = document.querySelector('a[href="#offices-tab"]');
+  if (officesTab) {
+    officesTab.addEventListener('shown.bs.tab', function() {
+      window.renderLibraryTable('offices');
+    });
+  }
 
-  document.querySelector('a[href="#positions-tab"]')?.addEventListener('shown.bs.tab', function() {
-    window.renderLibraryTable('positions');
-  });
+  const positionsTab = document.querySelector('a[href="#positions-tab"]');
+  if (positionsTab) {
+    positionsTab.addEventListener('shown.bs.tab', function() {
+      window.renderLibraryTable('positions');
+    });
+  }
 
   document.querySelectorAll('#employeeTabs a[data-bs-toggle="tab"], #libraryTabs a[data-bs-toggle="tab"]').forEach(tabEl => {
     tabEl.addEventListener('click', function (event) {
@@ -240,7 +252,10 @@ document.addEventListener('DOMContentLoaded', () => {
       if (dropdown) {
         const toggle = dropdown.querySelector('[data-bs-toggle="dropdown"]');
         if (toggle) {
-          bootstrap.Dropdown.getInstance(toggle)?.hide();
+          const dropdownInstance = bootstrap.Dropdown.getInstance(toggle);
+          if (dropdownInstance) {
+            dropdownInstance.hide();
+          }
         }
       }
     });
