@@ -3378,8 +3378,9 @@
                              monthlyPercent >= 80 ? 'progress-bar bg-warning' :
                              'progress-bar bg-success';
 
-      // Total balance
-      const totalBalance = overtimeTotalBalance + entriesTotal;
+      // Total balance - ensure overtimeTotalBalance is defined
+      const currentOvertimeBalance = (typeof overtimeTotalBalance !== 'undefined') ? overtimeTotalBalance : 0;
+      const totalBalance = currentOvertimeBalance + entriesTotal;
       const totalPercent = Math.min((totalBalance / 120) * 100, 100);
 
       document.getElementById('ot-total-hours').textContent = totalBalance.toFixed(1);
@@ -3851,7 +3852,8 @@
       }
 
       // Check total balance cap
-      const newTotalBalance = overtimeTotalBalance + totalCocEarned;
+      const currentOvertimeBalance = (typeof overtimeTotalBalance !== 'undefined') ? overtimeTotalBalance : 0;
+      const newTotalBalance = currentOvertimeBalance + totalCocEarned;
       if (newTotalBalance > 120) {
         Modal.error('Total Balance Cap Exceeded',
           `Total balance would be ${newTotalBalance.toFixed(1)} hours, exceeding the 120-hour cap.`);
