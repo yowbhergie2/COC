@@ -1,0 +1,4448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CompTime Tracker</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-color: #f5f7fa;
+      margin: 0;
+      padding: 0;
+    }
+    .navbar { 
+      position: sticky;
+      top: 0;
+      z-index: 1030;
+      background-color: #1e293b;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      padding: 0.75rem 0;
+    }
+    .navbar-brand {
+      font-weight: 700;
+      font-size: 1.35rem;
+      color: #fff !important;
+      letter-spacing: -0.5px;
+    }
+    .navbar-brand i {
+      color: #60a5fa;
+      margin-right: 0.5rem;
+    }
+    .nav-link { 
+      color: rgba(255,255,255,0.8) !important;
+      font-weight: 500;
+      padding: 0.5rem 1rem !important;
+      transition: all 0.2s ease;
+      border-radius: 6px;
+      margin: 0 0.25rem;
+      font-size: 0.95rem;
+    }
+    .nav-link:hover { 
+      color: #fff !important;
+      background-color: rgba(96, 165, 250, 0.15);
+    }
+    .nav-link.active { 
+      color: #fff !important;
+      background-color: #3b82f6;
+    }
+    .dropdown-menu {
+      border: none;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      border-radius: 8px;
+      padding: 0.5rem;
+      margin-top: 0.5rem;
+      min-width: 200px;
+    }
+    .dropdown-item {
+      border-radius: 6px;
+      padding: 0.625rem 1rem;
+      font-size: 0.9375rem;
+      transition: all 0.15s ease;
+      color: #1e293b;
+      font-weight: 500;
+      background-color: transparent;
+    }
+    .dropdown-item:hover {
+      background-color: #3b82f6;
+      color: #fff;
+      transform: translateX(4px);
+    }
+    .dropdown-item:focus {
+      background-color: transparent;
+      color: #1e293b;
+      outline: none;
+    }
+    .dropdown-item:active {
+      background-color: #2563eb;
+      color: #fff;
+    }
+    .content-wrapper { 
+      padding: 2rem;
+      min-height: calc(100vh - 70px);
+      background-color: #f5f7fa;
+    }
+    .page-view { 
+      display: none;
+    }
+    .page-view.active { 
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn {
+      from { 
+        opacity: 0; 
+        transform: translateY(10px);
+      }
+      to { 
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .card { 
+      border: none;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      border-radius: 12px;
+      margin-bottom: 1.5rem;
+      background-color: #fff;
+      transition: box-shadow 0.2s ease;
+    }
+    .card:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    }
+    .card-header {
+      background-color: #fff;
+      border-bottom: 1px solid #e2e8f0;
+      font-weight: 600;
+      padding: 1.25rem 1.5rem;
+      border-radius: 12px 12px 0 0;
+      color: #1e293b;
+    }
+    .card-header h5 {
+      margin: 0;
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+    .card-body {
+      padding: 1.5rem;
+    }
+    .stat-card { 
+      padding: 2rem 1.75rem;
+      border-radius: 12px;
+      color: #fff;
+      margin-bottom: 1.5rem;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 100px;
+      height: 100px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 50%;
+      transform: translate(30%, -30%);
+    }
+    .stat-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+    }
+    .stat-card h3 {
+      font-size: 2.75rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      position: relative;
+    }
+    .stat-card p {
+      margin: 0;
+      font-size: 0.95rem;
+      opacity: 0.95;
+      position: relative;
+      font-weight: 500;
+    }
+    .stat-card.blue { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
+    .stat-card.green { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+    .stat-card.orange { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+    .stat-card.violet { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); }
+    
+    .btn-primary {
+      background-color: #3b82f6;
+      border: none;
+      padding: 0.625rem 1.5rem;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      border-radius: 8px;
+      font-size: 0.9375rem;
+    }
+    .btn-primary:hover { 
+      background-color: #2563eb;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+    .btn-primary:disabled {
+      background-color: #93c5fd;
+      transform: none;
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+    .btn-secondary {
+      background-color: #64748b;
+      border: none;
+      border-radius: 8px;
+    }
+    .btn-secondary:hover {
+      background-color: #475569;
+    }
+    .btn-sm {
+      padding: 0.4rem 0.875rem;
+      font-size: 0.875rem;
+      border-radius: 6px;
+    }
+    .btn-outline-primary {
+      border-color: #3b82f6;
+      color: #3b82f6;
+      border-width: 1.5px;
+      border-radius: 8px;
+    }
+    .btn-outline-primary:hover {
+      background-color: #3b82f6;
+      border-color: #3b82f6;
+      color: #fff;
+    }
+    .btn-outline-danger {
+      border-color: #ef4444;
+      color: #ef4444;
+      border-width: 1.5px;
+      border-radius: 8px;
+    }
+    .btn-outline-danger:hover {
+      background-color: #ef4444;
+      border-color: #ef4444;
+      color: #fff;
+    }
+    .btn-gradient {
+      background: linear-gradient(135deg, #4f46e5 0%, #0ea5e9 100%);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      padding: 0.85rem 2.25rem;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      box-shadow: 0 12px 24px rgba(79, 70, 229, 0.25);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+    }
+    .btn-gradient:hover {
+      color: #fff;
+      transform: translateY(-2px);
+      box-shadow: 0 16px 30px rgba(79, 70, 229, 0.35);
+    }
+    .btn-gradient:focus {
+      color: #fff;
+      box-shadow: 0 0 0 0.25rem rgba(79, 70, 229, 0.25);
+    }
+    .btn-gradient:disabled {
+      opacity: 0.8;
+      transform: none;
+      box-shadow: none;
+    }
+    .btn-gradient .spinner-border {
+      width: 1.25rem;
+      height: 1.25rem;
+    }
+    .alert-item { 
+      border-left: 4px solid;
+      background-color: #fff;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .alert-item i {
+      margin-right: 0.5rem;
+    }
+    .alert-item.warning { 
+      border-color: #ef4444;
+      background-color: #fef2f2;
+    }
+    .alert-item.info { 
+      border-color: #3b82f6;
+      background-color: #eff6ff;
+    }
+    .table-hover tbody tr {
+      transition: background-color 0.15s ease;
+    }
+    .table-hover tbody tr:hover { 
+      background-color: #f8fafc;
+    }
+    .table thead th {
+      background-color: #f8fafc;
+      border-bottom: 2px solid #e2e8f0;
+      font-weight: 600;
+      color: #475569;
+      padding: 1rem;
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .table tbody td {
+      padding: 1rem;
+      vertical-align: middle;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .table-modern thead th {
+      background: linear-gradient(135deg, #eff6ff 0%, #e0f2fe 100%);
+      border-bottom: none;
+      color: #1e293b;
+      font-size: 0.75rem;
+      letter-spacing: 0.08rem;
+      text-transform: uppercase;
+      padding-top: 0.85rem;
+      padding-bottom: 0.85rem;
+    }
+    .table-modern tbody td {
+      background-color: #fff;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: 0.9375rem;
+    }
+    .badge {
+      padding: 0.4rem 0.75rem;
+      font-weight: 500;
+      font-size: 0.8125rem;
+      border-radius: 6px;
+    }
+    .loading {
+      text-align: center;
+      padding: 3rem;
+      color: #94a3b8;
+    }
+    #ot-entry-loading {
+      display: none;
+    }
+    #ot-entry-loading.active {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      padding: 2.5rem 1rem;
+      color: #475569;
+    }
+    .form-label {
+      font-weight: 600;
+      color: #334155;
+      margin-bottom: 0.5rem;
+      font-size: 0.9375rem;
+    }
+    .form-control, .form-select {
+      border: 1.5px solid #e2e8f0;
+      padding: 0.7rem 1rem;
+      font-size: 0.9375rem;
+      border-radius: 8px;
+      transition: all 0.2s ease;
+    }
+    .form-control:focus, .form-select:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+      outline: none;
+    }
+    .form-control.is-invalid, .form-select.is-invalid {
+      border-color: #ef4444;
+      padding-right: calc(1.5em + 0.75rem);
+      background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12' fill='none' stroke='%23ef4444'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23ef4444' stroke='none'/%3e%3c/svg%3e");
+      background-repeat: no-repeat;
+      background-position: right calc(0.375em + 0.1875rem) center;
+      background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+    }
+    .form-control.is-invalid:focus, .form-select.is-invalid:focus {
+      border-color: #ef4444;
+      box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+    }
+    .invalid-feedback {
+      display: none;
+      width: 100%;
+      margin-top: 0.25rem;
+      font-size: 0.875rem;
+      color: #ef4444;
+    }
+    .form-control.is-invalid ~ .invalid-feedback,
+    .form-select.is-invalid ~ .invalid-feedback {
+      display: block;
+    }
+    .modal-content {
+      border: none;
+      border-radius: 12px;
+      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+    }
+    .modal-header {
+      background-color: #f8fafc;
+      border-bottom: 1px solid #e2e8f0;
+      padding: 1.25rem 1.5rem;
+      border-radius: 12px 12px 0 0;
+    }
+    .modal-title {
+      font-weight: 600;
+      color: #1e293b;
+      font-size: 1.125rem;
+    }
+    .modal-body {
+      padding: 1.5rem;
+    }
+    .modal-footer {
+      border-top: 1px solid #e2e8f0;
+      padding: 1rem 1.5rem;
+    }
+    .user-info {
+      color: #fff;
+      font-weight: 500;
+      padding: 0.5rem 1rem;
+      background-color: rgba(59, 130, 246, 0.2);
+      border-radius: 8px;
+      font-size: 0.9375rem;
+    }
+    .user-info i {
+      color: #60a5fa;
+      margin-right: 0.5rem;
+    }
+    .page-title {
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 1.5rem;
+      font-size: 1.75rem;
+      letter-spacing: -0.5px;
+    }
+    .nav-tabs {
+      border-bottom: 2px solid #e2e8f0;
+    }
+    .nav-tabs {
+      border-bottom: 2px solid #e2e8f0;
+      margin-bottom: 1.5rem;
+    }
+    .nav-tabs .nav-link {
+      border: none;
+      color: #64748b !important;
+      font-weight: 500;
+      padding: 0.75rem 1.5rem;
+      margin: 0;
+      border-radius: 0;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s ease;
+      background-color: transparent !important;
+    }
+    .nav-tabs .nav-link:hover {
+      background-color: transparent !important;
+      border-bottom-color: #cbd5e1;
+      color: #475569 !important;
+    }
+    .nav-tabs .nav-link.active {
+      background-color: transparent !important;
+      color: #3b82f6 !important;
+      border-bottom-color: #3b82f6;
+    }
+    .alert-info {
+      background-color: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 8px;
+      color: #1e40af;
+    }
+    .alert-warning {
+      background-color: #fef3c7;
+      border: 1px solid #fde68a;
+      border-radius: 8px;
+      color: #92400e;
+    }
+    .search-box {
+      position: relative;
+      margin-bottom: 1.25rem;
+    }
+    .search-box .form-control {
+      padding-left: 2.75rem;
+      background-color: #fff;
+      border: 1.5px solid #e2e8f0;
+      transition: all 0.2s ease;
+    }
+    .search-box .form-control:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    .search-box .search-icon {
+      position: absolute;
+      left: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #94a3b8;
+      font-size: 1.1rem;
+      pointer-events: none;
+    }
+    .search-box .clear-search {
+      position: absolute;
+      right: 0.75rem;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: #94a3b8;
+      cursor: pointer;
+      padding: 0.25rem;
+      display: none;
+      transition: color 0.2s ease;
+    }
+    .search-box .clear-search:hover {
+      color: #64748b;
+    }
+    .search-box .clear-search.visible {
+      display: block;
+    }
+    .searchable-select-container {
+      position: relative;
+    }
+    .searchable-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: #fff;
+      border: 1.5px solid #e2e8f0;
+      border-top: none;
+      border-radius: 0 0 8px 8px;
+      max-height: 300px;
+      overflow-y: auto;
+      z-index: 1000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      margin-top: -1px;
+    }
+    .dropdown-list {
+      padding: 0.25rem 0;
+    }
+    .dropdown-item-custom {
+      padding: 0.75rem 1rem;
+      cursor: pointer;
+      transition: background-color 0.15s ease;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .dropdown-item-custom:last-child {
+      border-bottom: none;
+    }
+    .dropdown-item-custom:hover {
+      background-color: #f8fafc;
+    }
+    .dropdown-item-custom.selected {
+      background-color: #eff6ff;
+      color: #3b82f6;
+      font-weight: 500;
+    }
+    .dropdown-item-custom .employee-name {
+      font-weight: 500;
+      color: #1e293b;
+      display: block;
+    }
+    .dropdown-item-custom .employee-details {
+      font-size: 0.875rem;
+      color: #64748b;
+      display: block;
+      margin-top: 0.25rem;
+    }
+    .dropdown-no-results {
+      padding: 1rem;
+      text-align: center;
+      color: #94a3b8;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="#"><i class="bi bi-clock-history"></i> CompTime Tracker</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav">
+          <li class="nav-item">
+            <a class="nav-link active" href="#" data-page="dashboard">Dashboard</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#" data-page="employees">Employees</a>
+          </li>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">COC</a>
+            <ul class="dropdown-menu">
+              <li><a class="dropdown-item" href="#" data-page="log-overtime">Log Overtime</a></li>
+              <li><a class="dropdown-item" href="#" data-page="generate-cert">Generate Certificate</a></li>
+              <li><a class="dropdown-item" href="#" data-page="employee-ledger">View Employee Ledger</a></li>
+              <li><a class="dropdown-item" href="#" data-page="log-cto">Log CTO</a></li>
+            </ul>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#" data-page="reports">Reports</a>
+          </li>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Master</a>
+            <ul class="dropdown-menu">
+              <li><a class="dropdown-item" href="#" data-page="holidays">Holidays</a></li>
+              <li><a class="dropdown-item" href="#" data-page="configuration">System Configuration</a></li>
+              <li><a class="dropdown-item" href="#" data-page="libraries">Libraries</a></li>
+              <li><a class="dropdown-item" href="#" data-page="historical-balance">Historical Balance</a></li>
+            </ul>
+          </li>
+        </ul>
+        <ul class="navbar-nav ms-auto">
+          <li class="nav-item">
+            <span class="user-info" id="userEmail"><i class="bi bi-person-circle"></i> Loading...</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <div class="content-wrapper">
+    <div id="page-dashboard" class="page-view active">
+      <h2 class="page-title">Dashboard</h2>
+      <div class="row">
+        <div class="col-md-3">
+          <div class="stat-card blue">
+            <h3 id="stat-total-liability">0</h3>
+            <p>Total Liability (hrs)</p>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="stat-card green">
+            <h3 id="stat-active-employees">0</h3>
+            <p>Active Employees</p>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="stat-card orange">
+            <h3 id="stat-uncertified">0</h3>
+            <p>Uncertified Logs</p>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="stat-card violet">
+            <h3 id="stat-expiring-soon">0</h3>
+            <p>Expiring in 30 Days (hrs)</p>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-bell"></i> Alerts & Notifications</h5>
+        </div>
+        <div class="card-body" id="alerts-container">
+          <div class="loading">Loading alerts...</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="page-employees" class="page-view">
+      <h2 class="page-title">Manage Employees</h2>
+      <button class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#employeeModal" onclick="resetEmployeeForm()">
+        <i class="bi bi-plus-circle"></i> Add Employee
+      </button>
+      
+      <ul class="nav nav-tabs mb-3" id="employeeTabs">
+        <li class="nav-item">
+          <a class="nav-link active" data-bs-toggle="tab" href="#active-employees-tab">Active Employees</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" data-bs-toggle="tab" href="#inactive-employees-tab">Inactive Employees</a>
+        </li>
+      </ul>
+
+      <div class="tab-content">
+        <div class="tab-pane fade show active" id="active-employees-tab">
+          <div class="search-box">
+            <i class="bi bi-search search-icon"></i>
+            <input type="text" class="form-control" id="search-active-employees" placeholder="Search by Name, Office, or Position..." oninput="filterEmployees('active')">
+            <button class="clear-search" id="clear-active-search" onclick="clearEmployeeSearch('active')">
+              <i class="bi bi-x-circle-fill"></i>
+            </button>
+          </div>
+          <div class="card">
+            <div class="card-body">
+              <div class="table-responsive">
+                <table class="table table-hover">
+                  <thead>
+                    <tr>
+                      <th>Employee ID</th>
+                      <th>Name</th>
+                      <th>Office</th>
+                      <th>Position</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="activeEmployeesTableBody">
+                    <tr><td colspan="5" class="text-center">Loading...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tab-pane fade" id="inactive-employees-tab">
+          <div class="search-box">
+            <i class="bi bi-search search-icon"></i>
+            <input type="text" class="form-control" id="search-inactive-employees" placeholder="Search by Name, Office, or Position..." oninput="filterEmployees('inactive')">
+            <button class="clear-search" id="clear-inactive-search" onclick="clearEmployeeSearch('inactive')">
+              <i class="bi bi-x-circle-fill"></i>
+            </button>
+          </div>
+          <div class="card">
+            <div class="card-body">
+              <div class="table-responsive">
+                <table class="table table-hover">
+                  <thead>
+                    <tr>
+                      <th>Employee ID</th>
+                      <th>Name</th>
+                      <th>Office</th>
+                      <th>Position</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="inactiveEmployeesTableBody">
+                    <tr><td colspan="5" class="text-center">Loading...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="page-log-overtime" class="page-view">
+      <h2 class="page-title">Log Overtime</h2>
+
+      <!-- Employee/Month/Year Selection -->
+      <div class="card mb-3">
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-4 mb-3">
+              <label class="form-label"><strong>Employee</strong> <span class="text-danger">*</span></label>
+              <div class="searchable-select-container">
+                <div class="search-box">
+                  <i class="bi bi-search search-icon"></i>
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="ot-employee-search"
+                    placeholder="Search employee by name or ID..."
+                    autocomplete="off"
+                    oninput="filterOvertimeEmployees()"
+                    onfocus="showOvertimeEmployeeDropdown()"
+                  >
+                  <input type="hidden" id="ot-employee">
+                </div>
+                <div class="searchable-dropdown" id="ot-employee-dropdown" style="display: none;">
+                  <div class="dropdown-list" id="ot-employee-list"></div>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label"><strong>Month</strong> <span class="text-danger">*</span></label>
+              <select class="form-select" id="ot-month" onchange="updateOvertimeContext()">
+                <option value="">Select Month</option>
+                <option value="0">January</option>
+                <option value="1">February</option>
+                <option value="2">March</option>
+                <option value="3">April</option>
+                <option value="4">May</option>
+                <option value="5">June</option>
+                <option value="6">July</option>
+                <option value="7">August</option>
+                <option value="8">September</option>
+                <option value="9">October</option>
+                <option value="10">November</option>
+                <option value="11">December</option>
+              </select>
+              <div class="form-text text-muted d-none" id="ot-month-status"></div>
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label"><strong>Year</strong> <span class="text-danger">*</span></label>
+              <select class="form-select" id="ot-year" onchange="updateOvertimeMonthOptions()"></select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Progress Indicators -->
+      <div class="row mb-3" id="ot-progress-section" style="display:none;">
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-body">
+              <h6 class="text-muted mb-2"><i class="bi bi-calendar-month"></i> Monthly Accrual</h6>
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="h4 mb-0" id="ot-monthly-hours">0.0</span>
+                <span class="text-muted">/ 40.0 hours</span>
+              </div>
+              <div class="progress" style="height: 8px;">
+                <div class="progress-bar" id="ot-monthly-progress" role="progressbar" style="width: 0%"></div>
+              </div>
+              <small class="text-muted mt-1 d-block">Cap: 40 hours per month</small>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-body">
+              <h6 class="text-muted mb-2"><i class="bi bi-hourglass-split"></i> Total Balance</h6>
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="h4 mb-0" id="ot-total-hours">0.0</span>
+                <span class="text-muted">/ 120.0 hours</span>
+              </div>
+              <div class="progress" style="height: 8px;">
+                <div class="progress-bar" id="ot-total-progress" role="progressbar" style="width: 0%"></div>
+              </div>
+              <small class="text-muted mt-1 d-block">Active + Uncertified credits</small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Warning/Error Alerts -->
+      <div id="ot-alert-container"></div>
+
+      <!-- Entry Grid -->
+      <div class="card mb-3" id="ot-entry-section" style="display:none;">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5 class="mb-0">Overtime Entries</h5>
+          <button type="button" class="btn btn-sm btn-primary" onclick="addOvertimeDay()">
+            <i class="bi bi-plus-circle"></i> Add Day
+          </button>
+        </div>
+        <div class="card-body">
+          <div id="ot-entry-loading">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Loading overtime entries...</span>
+            </div>
+            <p class="fw-semibold mb-0">Loading overtime entries...</p>
+          </div>
+          <div class="table-responsive d-none" id="ot-entry-table-wrapper">
+            <table class="table table-modern table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th scope="col" style="width: 140px;">Date <span class="text-danger">*</span></th>
+                  <th scope="col" style="width: 120px;">Type</th>
+                  <th scope="col">AM In</th>
+                  <th scope="col">AM Out</th>
+                  <th scope="col">PM In</th>
+                  <th scope="col">PM Out</th>
+                  <th scope="col" style="width: 120px;">Hours Worked</th>
+                  <th scope="col" style="width: 130px;">COC Earned</th>
+                  <th scope="col" style="width: 70px;">Action</th>
+                </tr>
+              </thead>
+              <tbody id="ot-entries-tbody">
+                <!-- Dynamic rows will be added here -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Grand Total -->
+      <div class="card mb-3" id="ot-total-section" style="display:none;">
+        <div class="card-body">
+          <div class="row g-4 align-items-center">
+            <div class="col-md-6">
+              <div class="d-flex align-items-center gap-3">
+                <div class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+                  <i class="bi bi-clock-history"></i>
+                </div>
+                <div>
+                  <div class="text-muted text-uppercase small fw-semibold">Grand Total Hours Worked</div>
+                  <div class="h4 mb-0 text-primary"><span id="ot-grand-hours-worked">0.0</span> hrs</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="d-flex align-items-center justify-content-md-end gap-3">
+                <div class="rounded-circle bg-info-subtle text-info d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+                  <i class="bi bi-gem"></i>
+                </div>
+                <div class="text-md-end">
+                  <div class="text-muted text-uppercase small fw-semibold">Grand Total COC Earned</div>
+                  <div class="h4 mb-0 text-success"><span id="ot-grand-coc-earned">0.0</span> hrs</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Submit Button -->
+      <div class="card" id="ot-submit-section" style="display:none;">
+        <div class="card-body text-end">
+          <button type="button" class="btn btn-lg btn-gradient d-inline-flex align-items-center gap-2" onclick="submitOvertimeForm()">
+            <i class="bi bi-save-fill fs-5"></i>
+            <span class="btn-text">Log Overtime</span>
+            <span class="spinner-border spinner-border-sm text-light d-none" role="status" id="ot-submit-spinner">
+              <span class="visually-hidden">Submitting...</span>
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="page-generate-cert" class="page-view">
+      <h2 class="page-title">Generate COC Certificate</h2>
+      <div class="row mb-3">
+        <div class="col-md-4">
+          <label class="form-label">Select Employee</label>
+          <select class="form-select" id="cert-employee" onchange="loadUncertifiedLogs()"></select>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">Uncertified Overtime Logs</h5>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th><input type="checkbox" id="select-all-logs"></th>
+                  <th>Date</th>
+                  <th>Hours Worked</th>
+                  <th>Day Type</th>
+                  <th>Multiplier</th>
+                  <th>Earned Hours</th>
+                </tr>
+              </thead>
+              <tbody id="uncertifiedLogsBody">
+                <tr><td colspan="6" class="text-center">Select an employee</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="mt-3 d-flex justify-content-between align-items-center">
+            <strong>Total Selected: <span id="total-selected-hours" class="text-primary">0.00</span> hours</strong>
+            <button class="btn btn-primary" onclick="generateCertificate()">
+              <i class="bi bi-file-earmark-check"></i> Generate Certificate
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="page-employee-ledger" class="page-view">
+      <h2 class="page-title">Employee Ledger</h2>
+      <div class="row mb-3">
+        <div class="col-md-4">
+          <label class="form-label">Select Employee</label>
+          <select class="form-select" id="ledger-employee" onchange="loadEmployeeLedger()"></select>
+        </div>
+        <div class="col-md-8">
+          <div class="alert alert-info mt-4">
+            <strong><i class="bi bi-info-circle"></i> Current Balance: <span id="ledger-balance">0.00</span> hours</strong>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-hover table-sm">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Type</th>
+                  <th>Reference</th>
+                  <th>Hours Change</th>
+                  <th>Balance After</th>
+                  <th>Remarks</th>
+                </tr>
+              </thead>
+              <tbody id="ledgerTableBody">
+                <tr><td colspan="6" class="text-center">Select an employee</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="page-log-cto" class="page-view">
+      <h2 class="page-title">Log CTO (Use Credits)</h2>
+      <div class="card">
+        <div class="card-body">
+          <form id="ctoForm">
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label class="form-label">Employee</label>
+                <select class="form-select" id="cto-employee" onchange="showCtoBalance()" required></select>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label">CTO Date</label>
+                <input type="date" class="form-control" id="cto-date" required>
+              </div>
+            </div>
+            <div class="mb-3">
+              <div class="alert alert-info">
+                <strong><i class="bi bi-wallet2"></i> Available Balance: <span id="cto-available-balance">0.00</span> hours</strong>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Hours to Use</label>
+              <input type="number" class="form-control" id="cto-hours" step="0.5" min="0.5" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Remarks</label>
+              <textarea class="form-control" id="cto-remarks" rows="2"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-check-circle"></i> Log CTO
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div id="page-reports" class="page-view">
+      <h2 class="page-title">Reports</h2>
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-file-text"></i> COC Liability Report</h5>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th>Employee ID</th>
+                  <th>Name</th>
+                  <th>Total Balance (hrs)</th>
+                  <th>Active Batches</th>
+                  <th>Earliest Expiry</th>
+                </tr>
+              </thead>
+              <tbody id="liabilityReportBody">
+                <tr><td colspan="5" class="text-center">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="page-holidays" class="page-view">
+      <h2 class="page-title">Manage Holidays</h2>
+      <button class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#holidayModal" onclick="resetHolidayForm()">
+        <i class="bi bi-plus-circle"></i> Add Holiday
+      </button>
+      <div class="card">
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Holiday Name</th>
+                  <th>Type</th>
+                  <th>Recurring</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="holidaysTableBody">
+                <tr><td colspan="5" class="text-center">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="page-configuration" class="page-view">
+      <h2 class="page-title">System Configuration</h2>
+      <div class="card">
+        <div class="card-body">
+          <form id="configForm">
+            <h5 class="mb-3">Accrual Multipliers</h5>
+            <div class="row mb-4">
+              <div class="col-md-4">
+                <label class="form-label">Regular Day Multiplier</label>
+                <input type="number" class="form-control" id="config-regular" step="0.01" value="1.25">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Rest Day Multiplier</label>
+                <input type="number" class="form-control" id="config-restday" step="0.01" value="1.30">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Holiday Multiplier</label>
+                <input type="number" class="form-control" id="config-holiday" step="0.01" value="2.00">
+              </div>
+            </div>
+            <h5 class="mb-3">Balance Caps</h5>
+            <div class="row mb-4">
+              <div class="col-md-6">
+                <label class="form-label">Monthly Accrual Cap (hours)</label>
+                <input type="number" class="form-control" id="config-monthly-cap" value="40">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Total Balance Cap (hours)</label>
+                <input type="number" class="form-control" id="config-total-cap" value="120">
+              </div>
+            </div>
+            <h5 class="mb-3">Expiration</h5>
+            <div class="row mb-4">
+              <div class="col-md-6">
+                <label class="form-label">Expiry Period (months)</label>
+                <input type="number" class="form-control" id="config-expiry-months" value="12">
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-save"></i> Save Configuration
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div id="page-libraries" class="page-view">
+      <h2 class="page-title">Libraries</h2>
+      <ul class="nav nav-tabs mb-3" id="libraryTabs">
+        <li class="nav-item">
+          <a class="nav-link active" data-bs-toggle="tab" href="#offices-tab">Offices</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" data-bs-toggle="tab" href="#positions-tab">Positions</a>
+        </li>
+      </ul>
+      <div class="tab-content">
+        <div class="tab-pane fade show active" id="offices-tab">
+          <button class="btn btn-primary mb-3" onclick="showAddLibraryModal('offices')">
+            <i class="bi bi-plus-circle"></i> Add Office
+          </button>
+          <div class="search-box">
+            <i class="bi bi-search search-icon"></i>
+            <input type="text" class="form-control" id="search-offices" placeholder="Search offices by name..." oninput="filterLibrary('offices')">
+            <button class="clear-search" id="clear-offices-search" onclick="clearLibrarySearch('offices')">
+              <i class="bi bi-x-circle-fill"></i>
+            </button>
+          </div>
+          <div class="card">
+            <div class="card-body">
+              <div class="table-responsive">
+                <table class="table table-hover">
+                  <thead>
+                    <tr>
+                      <th>Office Name</th>
+                      <th style="width: 150px;">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="offices-list">
+                    <tr><td colspan="2" class="text-center">Loading...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="tab-pane fade" id="positions-tab">
+          <button class="btn btn-primary mb-3" onclick="showAddLibraryModal('positions')">
+            <i class="bi bi-plus-circle"></i> Add Position
+          </button>
+          <div class="search-box">
+            <i class="bi bi-search search-icon"></i>
+            <input type="text" class="form-control" id="search-positions" placeholder="Search positions by name..." oninput="filterLibrary('positions')">
+            <button class="clear-search" id="clear-positions-search" onclick="clearLibrarySearch('positions')">
+              <i class="bi bi-x-circle-fill"></i>
+            </button>
+          </div>
+          <div class="card">
+            <div class="card-body">
+              <div class="table-responsive">
+                <table class="table table-hover">
+                  <thead>
+                    <tr>
+                      <th>Position Title</th>
+                      <th style="width: 150px;">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="positions-list">
+                    <tr><td colspan="2" class="text-center">Loading...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="page-historical-balance" class="page-view">
+      <h2 class="page-title">Historical Balance Migration</h2>
+
+      <!-- About Section -->
+      <div class="row mb-4">
+        <div class="col-12">
+          <div class="card">
+            <div class="card-body">
+              <h5 class="mb-3"><i class="bi bi-info-circle text-info"></i> About This Feature</h5>
+              <p class="mb-2">
+                The Historical Balance feature is designed for <strong>migrating existing COC (Compensatory Overtime Credit) balances</strong> from your old system into the current system.
+              </p>
+              <p class="mb-0">
+                <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle"></i> One-Time Migration Tool</span>
+                This is not for regular ongoing entries.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Employee Selector -->
+      <div class="row mb-4">
+        <div class="col-12">
+          <div class="card">
+            <div class="card-body">
+              <label class="form-label"><h5><i class="bi bi-person-circle"></i> Select Employee</h5></label>
+              <div class="searchable-select-container">
+                <div class="search-box">
+                  <i class="bi bi-search search-icon"></i>
+                  <input
+                    type="text"
+                    class="form-control form-control-lg"
+                    id="hist-employee-filter-search"
+                    placeholder="Search and select employee to view/add historical balance..."
+                    autocomplete="off"
+                    oninput="filterHistoricalEmployeeFilter()"
+                    onfocus="showHistoricalEmployeeFilterDropdown()"
+                  >
+                  <input type="hidden" id="hist-employee-filter">
+                </div>
+                <div class="searchable-dropdown" id="hist-employee-filter-dropdown" style="display: none;">
+                  <div class="dropdown-list" id="hist-employee-filter-list"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Content Section (shown after employee selection) -->
+      <div id="hist-content-section" style="display: none;">
+
+        <!-- Tabs -->
+        <ul class="nav nav-tabs mb-3" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="tab-add-hist" data-bs-toggle="tab" data-bs-target="#content-add-hist" type="button" role="tab">
+              <i class="bi bi-plus-circle"></i> Add Historical Balance
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-list-hist" data-bs-toggle="tab" data-bs-target="#content-list-hist" type="button" role="tab">
+              <i class="bi bi-list-ul"></i> Historical Balance List
+            </button>
+          </li>
+        </ul>
+
+        <div class="tab-content">
+          <!-- Add Historical Balance Tab -->
+          <div class="tab-pane fade show active" id="content-add-hist" role="tabpanel">
+            <div class="card">
+              <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-database-fill-up"></i> Add Historical Balance</h5>
+              </div>
+              <div class="card-body">
+                <form id="historicalForm">
+                  <input type="hidden" id="hist-batch-id">
+                  <input type="hidden" id="hist-is-edit" value="false">
+                  <div class="row">
+                    <!-- Employee (read-only, pre-filled) -->
+                    <div class="col-md-4 mb-3">
+                      <label class="form-label">Employee <span class="text-danger">*</span></label>
+                      <input type="text" class="form-control" id="hist-employee-name" readonly style="background-color: #f8fafc; font-weight: 600;">
+                      <input type="hidden" id="hist-employee" required>
+                    </div>
+
+                  <!-- Month & Year -->
+                  <div class="col-md-2 mb-3">
+                    <label class="form-label">Month & Year <span class="text-danger">*</span></label>
+                    <input type="month" class="form-control" id="hist-month-year" required onchange="enableDateOfIssuance()">
+                    <div class="invalid-feedback">Required</div>
+                  </div>
+
+                  <!-- Date of Issuance -->
+                  <div class="col-md-2 mb-3">
+                    <label class="form-label">Date of Issuance <span class="text-danger">*</span></label>
+                    <input type="date" class="form-control" id="hist-date-issuance" disabled required>
+                    <div class="invalid-feedback">Required</div>
+                  </div>
+
+                  <!-- COC Earned -->
+                  <div class="col-md-2 mb-3">
+                    <label class="form-label">COC Earned (hrs) <span class="text-danger">*</span></label>
+                    <input type="number" class="form-control" id="hist-coc-earned" step="0.5" min="0" max="40" required oninput="validateHistoricalFields()">
+                    <small class="text-muted">Max: 40</small>
+                    <div class="invalid-feedback" id="hist-earned-feedback">0.5 - 40 hours</div>
+                  </div>
+
+                  <!-- COC Used -->
+                  <div class="col-md-2 mb-3">
+                    <label class="form-label">COC Used (hrs)</label>
+                    <input type="number" class="form-control" id="hist-coc-used" step="4" min="0" value="0" oninput="validateHistoricalFields()">
+                    <small class="text-muted">4 or 8 hr blocks</small>
+                    <div class="invalid-feedback" id="hist-used-feedback">Must be in blocks of 4 or 8</div>
+                  </div>
+                </div>
+
+                <div class="row">
+                  <!-- Auto-calculated Fields -->
+                  <div class="col-md-8">
+                    <div class="alert alert-light border mb-0">
+                      <h6 class="mb-2"><i class="bi bi-calculator"></i> Auto-Calculated</h6>
+                      <div class="row">
+                        <div class="col-4">
+                          <label class="form-label mb-1 small">Remaining</label>
+                          <input type="text" class="form-control form-control-sm" id="hist-remaining" readonly style="background-color: #f8fafc; font-weight: 600;">
+                        </div>
+                        <div class="col-4">
+                          <label class="form-label mb-1 small">Valid Until</label>
+                          <input type="text" class="form-control form-control-sm" id="hist-valid-until" readonly style="background-color: #f8fafc; font-weight: 600;">
+                        </div>
+                        <div class="col-4">
+                          <label class="form-label mb-1 small">Status</label>
+                          <input type="text" class="form-control form-control-sm" id="hist-status" readonly style="background-color: #f8fafc; font-weight: 600;">
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Action Buttons -->
+                  <div class="col-md-4 d-flex align-items-end gap-2">
+                    <button type="submit" class="btn btn-primary flex-grow-1" id="hist-submit-btn">
+                      <span class="btn-text"><i class="bi bi-upload"></i> <span id="hist-submit-text">Migrate</span></span>
+                      <span class="spinner-border spinner-border-sm d-none" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                      </span>
+                    </button>
+                    <button type="button" class="btn btn-outline-danger d-none" id="hist-cancel-btn" onclick="cancelEditHistoricalBalance()" title="Cancel Edit">
+                      <i class="bi bi-x-lg"></i> Cancel
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="resetHistoricalForm()" title="Reset Form">
+                      <i class="bi bi-arrow-counterclockwise"></i>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Validation Rules Accordion -->
+                <div class="accordion mt-3" id="validationRulesAccordion">
+                  <div class="accordion-item">
+                    <h2 class="accordion-header">
+                      <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#validationRules">
+                        <i class="bi bi-shield-check me-2"></i> Validation Rules & CTO Availment Guidelines
+                      </button>
+                    </h2>
+                    <div id="validationRules" class="accordion-collapse collapse" data-bs-parent="#validationRulesAccordion">
+                      <div class="accordion-body">
+                        <h6>Migration Validation Rules:</h6>
+                        <ol class="mb-3 ps-3">
+                          <li class="mb-2"><strong>Monthly Cap:</strong> COC Earned ≤ 40 hours per month</li>
+                          <li class="mb-2"><strong>Used vs Earned:</strong> COC Used must be ≤ COC Earned</li>
+                          <li class="mb-2"><strong>Issuance Date:</strong> Must be between last day of earned month and last day of the month after (e.g., Jan 31 to Feb 29 for January, or Dec 31 to Jan 31 for December)</li>
+                          <li class="mb-2"><strong>Total Balance Cap:</strong> Adding remaining hours cannot exceed employee's 120-hour total balance</li>
+                          <li class="mb-0"><strong>No Duplicates:</strong> Cannot log multiple historical balances for the same employee + month + year combination. Prevents double-entry</li>
+                        </ol>
+                        <h6>CTO Availment (4/8 Hour Blocks):</h6>
+                        <ul class="mb-0 ps-3">
+                          <li class="mb-2"><strong>Block Requirement:</strong> CTO may be availed in blocks of 4 or 8 hours only</li>
+                          <li class="mb-2"><strong>Continuous Use:</strong> Up to maximum of 5 consecutive days per single availment</li>
+                          <li class="mb-0"><strong>Staggered Use:</strong> Can be used on staggered basis within the year</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <!-- Historical Balance List Tab -->
+        <div class="tab-pane fade" id="content-list-hist" role="tabpanel">
+          <div class="card">
+            <div class="card-header">
+              <h5 class="mb-0"><i class="bi bi-list-ul"></i> Historical Balance List</h5>
+            </div>
+            <div class="card-body">
+              <div class="table-responsive">
+                <table class="table table-hover table-sm">
+                  <thead>
+                    <tr>
+                      <th>Month/Year</th>
+                      <th>Earned</th>
+                      <th>Used</th>
+                      <th>Remaining</th>
+                      <th>Issued</th>
+                      <th>Valid Until</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="historicalBalancesTableBody">
+                    <tr><td colspan="8" class="text-center text-muted">Select an employee above to view their historical balances</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      </div>
+
+      <!-- Employees Without Historical Balance -->
+      <div class="row mt-4">
+        <div class="col-12">
+          <div class="card">
+            <div class="card-header">
+              <h5 class="mb-0"><i class="bi bi-exclamation-triangle-fill text-warning"></i> Employees Without Historical Balance</h5>
+            </div>
+            <div class="card-body">
+              <div id="employees-no-hist-list" class="d-flex flex-wrap gap-2">
+                <span class="text-muted">Loading...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="employeeModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="employeeModalTitle">Add Employee</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="employeeForm" novalidate>
+            <input type="hidden" id="emp-id-hidden">
+            <div id="emp-id-display" class="alert alert-info mb-3" style="display: none;">
+              <strong>Employee ID:</strong> <span id="emp-id-text"></span>
+            </div>
+            <div class="row">
+              <div class="col-md-4 mb-3">
+                <label class="form-label">First Name <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="emp-fname" required>
+                <div class="invalid-feedback">First name is required</div>
+              </div>
+              <div class="col-md-4 mb-3">
+                <label class="form-label">Middle Name</label>
+                <input type="text" class="form-control" id="emp-mname">
+              </div>
+              <div class="col-md-4 mb-3">
+                <label class="form-label">Last Name <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="emp-lname" required>
+                <div class="invalid-feedback">Last name is required</div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-3 mb-3">
+                <label class="form-label">Suffix</label>
+                <select class="form-select" id="emp-suffix">
+                  <option value="">None</option>
+                  <option value="Jr.">Jr.</option>
+                  <option value="Sr.">Sr.</option>
+                  <option value="II">II</option>
+                  <option value="III">III</option>
+                  <option value="IV">IV</option>
+                  <option value="V">V</option>
+                </select>
+              </div>
+              <div class="col-md-4 mb-3">
+                <label class="form-label">Office <span class="text-danger">*</span></label>
+                <select class="form-select" id="emp-office" required>
+                  <option value="">Select Office</option>
+                </select>
+                <div class="invalid-feedback">Please select an office</div>
+              </div>
+              <div class="col-md-5 mb-3">
+                <label class="form-label">Position <span class="text-danger">*</span></label>
+                <select class="form-select" id="emp-position" required>
+                  <option value="">Select Position</option>
+                </select>
+                <div class="invalid-feedback">Please select a position</div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-4 mb-3">
+                <label class="form-label">Status <span class="text-danger">*</span></label>
+                <select class="form-select" id="emp-status" required>
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                </select>
+                <div class="invalid-feedback">Please select status</div>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="saveEmployeeBtn" onclick="saveEmployee()">
+            <span class="btn-text">Save</span>
+            <span class="spinner-border spinner-border-sm d-none ms-2" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="holidayModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Add Holiday</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="holidayForm">
+            <div class="mb-3">
+              <label class="form-label">Date</label>
+              <input type="date" class="form-control" id="hol-date" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Holiday Name</label>
+              <input type="text" class="form-control" id="hol-name" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Type</label>
+              <select class="form-select" id="hol-type" required>
+                <option value="Regular">Regular Holiday</option>
+                <option value="Special">Special Non-Working</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="hol-recurring">
+                <label class="form-check-label" for="hol-recurring">Recurring Annual Holiday</label>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" onclick="saveHoliday()">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="libraryModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="libraryModalTitle">Add Item</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="libraryForm">
+            <input type="hidden" id="lib-item-id">
+            <input type="hidden" id="lib-type">
+            <div class="mb-3">
+              <label class="form-label" id="libraryItemLabel">Name</label>
+              <input type="text" class="form-control" id="lib-name" required>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" onclick="saveLibraryItem()">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="universalModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg">
+        <div class="modal-body text-center p-4" id="universalModalBody">
+        </div>
+        <div class="modal-footer border-0 justify-content-center" id="universalModalFooter">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+    import { getAuth, signInWithCustomToken } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+    import { getFirestore, collection, query, where, orderBy, onSnapshot, doc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+    let db, auth, currentUser;
+    let employeesData = [];
+    let unsubscribers = [];
+    let librariesData = { offices: [], positions: [] };
+    let employeeSearchTerms = { active: '', inactive: '' };
+    let librarySearchTerms = { offices: '', positions: '' };
+
+    // Helper to check if tab is currently visible
+    function isTabVisible(tabId) {
+      const tab = document.querySelector(`#${tabId}`);
+      return tab && tab.classList.contains('show') && tab.classList.contains('active');
+    }
+
+    window.Modal = {
+      _instance: null,
+      _callback: null,
+
+      _show(config) {
+        const modalEl = document.getElementById('universalModal');
+        const bodyEl = document.getElementById('universalModalBody');
+        const footerEl = document.getElementById('universalModalFooter');
+
+        bodyEl.innerHTML = `
+          <div class="mb-3">
+            <i class="bi ${config.icon} ${config.iconColor}" style="font-size: 4rem;"></i>
+          </div>
+          <h5 class="modal-title mb-3">${config.title}</h5>
+          <p class="text-muted mb-0">${config.message}</p>
+        `;
+
+        footerEl.innerHTML = '';
+        config.buttons.forEach(btn => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = `btn ${btn.class} px-4`;
+          button.textContent = btn.text;
+          
+          if (btn.dismiss) {
+            button.setAttribute('data-bs-dismiss', 'modal');
+          }
+          
+          if (btn.callback) {
+            button.onclick = () => {
+              if (this._instance) {
+                this._instance.hide();
+              }
+              btn.callback();
+            };
+          } else if (btn.dismiss) {
+          }
+          
+          footerEl.appendChild(button);
+        });
+
+        if (this._instance) {
+          this._instance.dispose();
+        }
+        
+        this._instance = new bootstrap.Modal(modalEl, {
+          backdrop: config.backdrop !== false ? 'static' : true,
+          keyboard: config.keyboard !== false
+        });
+
+        if (config.clickOutsideToClose) {
+          modalEl.addEventListener('click', (e) => {
+            if (e.target === modalEl) {
+              this._instance.hide();
+            }
+          });
+        }
+
+        if (config.keyboard !== false) {
+          const escHandler = (e) => {
+            if (e.key === 'Escape' && this._instance) {
+              this._instance.hide();
+              modalEl.removeEventListener('keydown', escHandler);
+            }
+          };
+          modalEl.addEventListener('keydown', escHandler);
+        }
+
+        this._instance.show();
+      },
+
+      success(title, message, callback) {
+        this._show({
+          title: title || 'Success!',
+          message: message || '',
+          icon: 'bi-check-circle-fill',
+          iconColor: 'text-success',
+          buttons: [
+            { text: 'OK', class: 'btn-success', dismiss: true, callback: callback }
+          ],
+          keyboard: true,
+          clickOutsideToClose: false
+        });
+      },
+
+      error(title, message, callback) {
+        this._show({
+          title: title || 'Error',
+          message: message || '',
+          icon: 'bi-x-circle-fill',
+          iconColor: 'text-danger',
+          buttons: [
+            { text: 'OK', class: 'btn-danger', dismiss: true, callback: callback }
+          ],
+          keyboard: true,
+          clickOutsideToClose: false
+        });
+      },
+
+      warning(title, message, callback) {
+        this._show({
+          title: title || 'Warning',
+          message: message || '',
+          icon: 'bi-exclamation-triangle-fill',
+          iconColor: 'text-warning',
+          buttons: [
+            { text: 'OK', class: 'btn-warning', dismiss: true, callback: callback }
+          ],
+          keyboard: true,
+          clickOutsideToClose: false
+        });
+      },
+
+      info(title, message, callback) {
+        this._show({
+          title: title || 'Information',
+          message: message || '',
+          icon: 'bi-info-circle-fill',
+          iconColor: 'text-info',
+          buttons: [
+            { text: 'OK', class: 'btn-info', dismiss: true, callback: callback }
+          ],
+          keyboard: true,
+          clickOutsideToClose: false
+        });
+      },
+
+      confirm(title, message, onConfirm, onCancel) {
+        this._show({
+          title: title || 'Confirm Action',
+          message: message || 'Are you sure?',
+          icon: 'bi-question-circle-fill',
+          iconColor: 'text-warning',
+          buttons: [
+            { text: 'Cancel', class: 'btn-secondary', dismiss: true, callback: onCancel },
+            { text: 'Yes, Continue', class: 'btn-warning', callback: onConfirm }
+          ],
+          keyboard: true,
+          clickOutsideToClose: false
+        });
+      },
+
+      custom(config) {
+        const defaults = {
+          title: 'Modal',
+          message: '',
+          icon: 'bi-info-circle-fill',
+          iconColor: 'text-primary',
+          buttons: [
+            { text: 'OK', class: 'btn-primary', dismiss: true }
+          ],
+          keyboard: true,
+          clickOutsideToClose: false,
+          backdrop: true
+        };
+        
+        const finalConfig = { ...defaults, ...config };
+        this._show(finalConfig);
+      }
+    };
+
+    async function initFirebase() {
+      try {
+        console.log('Starting Firebase initialization...');
+        
+        const result = await new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(reject)
+            .getFirebaseConfigAndToken();
+        });
+
+        console.log('Received Firebase config and token');
+        
+        const app = initializeApp(result.config);
+        auth = getAuth(app);
+        db = getFirestore(app);
+
+        console.log('Signing in with custom token...');
+        await signInWithCustomToken(auth, result.token);
+        currentUser = auth.currentUser;
+        
+        console.log('Firebase authentication successful');
+        document.getElementById('userEmail').innerHTML = `<i class="bi bi-person-circle"></i> ${result.userEmail}`;
+
+        loadAllData();
+      } catch (error) {
+        console.error('Firebase init error:', error);
+        Modal.error('Firebase Error', 'Error initializing Firebase: ' + error.message);
+      }
+    }
+
+    function loadAllData() {
+      loadEmployees();
+      loadDashboard();
+      loadHolidays();
+      loadConfiguration();
+      loadLibraries();
+      // loadHistoricalBalances is now called when an employee is selected
+    }
+
+    function loadEmployees() {
+      const q = query(collection(db, 'employees'), orderBy('lastName'));
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        employeesData = [];
+        snapshot.forEach((doc) => {
+          employeesData.push({ id: doc.id, ...doc.data() });
+        });
+
+        populateEmployeeDropdowns();
+        // Only render the active tab initially for better performance
+        renderEmployeesTable('active');
+      });
+      unsubscribers.push(unsubscribe);
+    }
+
+    function populateEmployeeDropdowns() {
+      // Regular dropdowns (except ot-employee and hist-employee which are now searchable)
+      const dropdowns = ['cert-employee', 'ledger-employee', 'cto-employee'];
+      dropdowns.forEach(id => {
+        const select = document.getElementById(id);
+        if (select) {
+          select.innerHTML = '<option value="">Select Employee</option>';
+          employeesData.forEach(emp => {
+            if (emp.isActive) {
+              select.innerHTML += `<option value="${emp.employeeId}">${emp.lastName}, ${emp.firstName} (${emp.employeeId})</option>`;
+            }
+          });
+        }
+      });
+
+      // Populate searchable dropdowns
+      populateOvertimeEmployeeDropdown();
+      populateHistoricalEmployeeDropdown();
+      populateHistoricalEmployeeFilterDropdown();
+      renderEmployeesWithoutHistoricalBalance();
+    }
+
+    function populateOvertimeEmployeeDropdown() {
+      const dropdown = document.getElementById('ot-employee-list');
+      if (!dropdown) return;
+
+      const activeEmployees = employeesData.filter(emp => emp.isActive);
+
+      if (activeEmployees.length === 0) {
+        dropdown.innerHTML = '<div class="dropdown-no-results">No active employees found</div>';
+        return;
+      }
+
+      dropdown.innerHTML = activeEmployees.map(emp => `
+        <div class="dropdown-item-custom" onclick="selectOvertimeEmployee('${emp.employeeId}', '${emp.lastName}, ${emp.firstName}', '${emp.office}', '${emp.position}')">
+          <span class="employee-name">${emp.lastName}, ${emp.firstName}</span>
+          <span class="employee-details">${emp.employeeId} • ${emp.office} • ${emp.position}</span>
+        </div>
+      `).join('');
+    }
+
+    window.filterOvertimeEmployees = function() {
+      const searchInput = document.getElementById('ot-employee-search');
+      const dropdown = document.getElementById('ot-employee-list');
+      const searchTerm = searchInput.value.toLowerCase().trim();
+
+      const activeEmployees = employeesData.filter(emp => emp.isActive);
+
+      let filteredEmployees = activeEmployees;
+
+      if (searchTerm) {
+        filteredEmployees = activeEmployees.filter(emp => {
+          const fullName = `${emp.firstName} ${emp.lastName}`.toLowerCase();
+          const reverseName = `${emp.lastName} ${emp.firstName}`.toLowerCase();
+          const employeeId = emp.employeeId.toLowerCase();
+          const office = (emp.office || '').toLowerCase();
+          const position = (emp.position || '').toLowerCase();
+
+          return fullName.includes(searchTerm) ||
+                 reverseName.includes(searchTerm) ||
+                 employeeId.includes(searchTerm) ||
+                 office.includes(searchTerm) ||
+                 position.includes(searchTerm);
+        });
+      }
+
+      if (filteredEmployees.length === 0) {
+        dropdown.innerHTML = '<div class="dropdown-no-results">No employees found</div>';
+      } else {
+        dropdown.innerHTML = filteredEmployees.map(emp => `
+          <div class="dropdown-item-custom" onclick="selectOvertimeEmployee('${emp.employeeId}', '${emp.lastName}, ${emp.firstName}', '${emp.office}', '${emp.position}')">
+            <span class="employee-name">${emp.lastName}, ${emp.firstName}</span>
+            <span class="employee-details">${emp.employeeId} • ${emp.office} • ${emp.position}</span>
+          </div>
+        `).join('');
+      }
+
+      showOvertimeEmployeeDropdown();
+    };
+
+    window.showOvertimeEmployeeDropdown = function() {
+      const dropdown = document.getElementById('ot-employee-dropdown');
+      dropdown.style.display = 'block';
+    };
+
+    window.hideOvertimeEmployeeDropdown = function() {
+      const dropdown = document.getElementById('ot-employee-dropdown');
+      dropdown.style.display = 'none';
+    };
+
+    window.selectOvertimeEmployee = function(employeeId, name, office, position) {
+      const searchInput = document.getElementById('ot-employee-search');
+      const hiddenInput = document.getElementById('ot-employee');
+
+      searchInput.value = `${name} (${employeeId})`;
+      hiddenInput.value = employeeId;
+
+      hideOvertimeEmployeeDropdown();
+    };
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(event) {
+      const container = document.querySelector('.searchable-select-container');
+      const dropdown = document.getElementById('ot-employee-dropdown');
+
+      if (container && dropdown && !container.contains(event.target)) {
+        hideOvertimeEmployeeDropdown();
+      }
+    });
+
+    function renderEmployeesTable(type) {
+      // If no type specified, render both (for initial load only)
+      const typesToRender = type ? [type] : ['active', 'inactive'];
+
+      typesToRender.forEach(tabType => {
+        const employees = employeesData.filter(emp =>
+          tabType === 'active' ? emp.isActive : !emp.isActive
+        );
+
+        // Apply search filter
+        let filteredEmployees = employees;
+        const searchTerm = employeeSearchTerms[tabType];
+
+        if (searchTerm) {
+          const searchLower = searchTerm.toLowerCase();
+          filteredEmployees = employees.filter(emp => {
+            const fullName = `${emp.firstName} ${emp.lastName}`.toLowerCase();
+            const reverseName = `${emp.lastName} ${emp.firstName}`.toLowerCase();
+            return fullName.includes(searchLower) ||
+                   reverseName.includes(searchLower) ||
+                   (emp.office && emp.office.toLowerCase().includes(searchLower)) ||
+                   (emp.position && emp.position.toLowerCase().includes(searchLower));
+          });
+        }
+
+        const tableBody = document.getElementById(`${tabType}EmployeesTableBody`);
+
+        if (filteredEmployees.length === 0) {
+          const message = searchTerm ? 'No employees match your search' : `No ${tabType} employees found`;
+          tableBody.innerHTML = `<tr><td colspan="5" class="text-center">${message}</td></tr>`;
+        } else {
+          tableBody.innerHTML = filteredEmployees.map(emp => `
+            <tr>
+              <td>${emp.employeeId}</td>
+              <td>${emp.lastName}, ${emp.firstName}</td>
+              <td>${emp.office}</td>
+              <td>${emp.position}</td>
+              <td>
+                <button class="btn btn-sm btn-outline-primary me-1" onclick="editEmployee('${emp.employeeId}')">
+                  <i class="bi bi-pencil"></i> Edit
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteEmployee('${emp.employeeId}')">
+                  <i class="bi bi-trash"></i> Delete
+                </button>
+              </td>
+            </tr>
+          `).join('');
+        }
+      });
+    }
+
+    window.deleteEmployee = async function(employeeId) {
+      Modal.confirm(
+        'Delete Employee',
+        'Are you sure you want to delete this employee? This action cannot be undone.',
+        async function() {
+          try {
+            const result = await new Promise((resolve, reject) => {
+              google.script.run
+                .withSuccessHandler(resolve)
+                .withFailureHandler(reject)
+                .deleteEmployee_SERVER(employeeId);
+            });
+
+            if (result.success) {
+              Modal.success('Success!', 'Employee deleted successfully!');
+            } else {
+              Modal.error('Error', result.error);
+            }
+          } catch (error) {
+            Modal.error('Error', 'Error deleting employee: ' + error);
+          }
+        }
+      );
+    };
+
+    window.filterEmployees = function(type) {
+      const searchInput = document.getElementById(`search-${type}-employees`);
+      const clearBtn = document.getElementById(`clear-${type}-search`);
+
+      employeeSearchTerms[type] = searchInput.value;
+
+      // Show/hide clear button
+      if (searchInput.value) {
+        clearBtn.classList.add('visible');
+      } else {
+        clearBtn.classList.remove('visible');
+      }
+
+      // Only render the specific tab being filtered
+      renderEmployeesTable(type);
+    };
+
+    window.clearEmployeeSearch = function(type) {
+      const searchInput = document.getElementById(`search-${type}-employees`);
+      const clearBtn = document.getElementById(`clear-${type}-search`);
+
+      searchInput.value = '';
+      employeeSearchTerms[type] = '';
+      clearBtn.classList.remove('visible');
+
+      // Only render the specific tab being cleared
+      renderEmployeesTable(type);
+    };
+
+    // Historical Balance Employee Dropdown Functions
+    // Employee Filter Dropdown (Main selector)
+    let selectedHistoricalEmployee = null;
+
+    function populateHistoricalEmployeeFilterDropdown() {
+      const dropdown = document.getElementById('hist-employee-filter-list');
+      if (!dropdown) return;
+
+      const activeEmployees = employeesData.filter(emp => emp.isActive);
+
+      if (activeEmployees.length === 0) {
+        dropdown.innerHTML = '<div class="dropdown-no-results">No active employees found</div>';
+        return;
+      }
+
+      dropdown.innerHTML = activeEmployees.map(emp => `
+        <div class="dropdown-item-custom" onclick="selectHistoricalEmployeeFilter('${emp.employeeId}', '${emp.lastName}, ${emp.firstName}')">
+          <span class="employee-name">${emp.lastName}, ${emp.firstName}</span>
+          <span class="employee-details">${emp.employeeId} • ${emp.office} • ${emp.position}</span>
+        </div>
+      `).join('');
+    }
+
+    window.filterHistoricalEmployeeFilter = function() {
+      const searchInput = document.getElementById('hist-employee-filter-search');
+      const dropdown = document.getElementById('hist-employee-filter-list');
+      const searchTerm = searchInput.value.toLowerCase().trim();
+
+      const activeEmployees = employeesData.filter(emp => emp.isActive);
+      let filteredEmployees = activeEmployees;
+
+      if (searchTerm) {
+        filteredEmployees = activeEmployees.filter(emp => {
+          const fullName = `${emp.firstName} ${emp.lastName}`.toLowerCase();
+          const reverseName = `${emp.lastName} ${emp.firstName}`.toLowerCase();
+          const employeeId = emp.employeeId.toLowerCase();
+          return fullName.includes(searchTerm) ||
+                 reverseName.includes(searchTerm) ||
+                 employeeId.includes(searchTerm);
+        });
+      }
+
+      if (filteredEmployees.length === 0) {
+        dropdown.innerHTML = '<div class="dropdown-no-results">No employees found</div>';
+      } else {
+        dropdown.innerHTML = filteredEmployees.map(emp => `
+          <div class="dropdown-item-custom" onclick="selectHistoricalEmployeeFilter('${emp.employeeId}', '${emp.lastName}, ${emp.firstName}')">
+            <span class="employee-name">${emp.lastName}, ${emp.firstName}</span>
+            <span class="employee-details">${emp.employeeId} • ${emp.office} • ${emp.position}</span>
+          </div>
+        `).join('');
+      }
+
+      showHistoricalEmployeeFilterDropdown();
+    };
+
+    window.showHistoricalEmployeeFilterDropdown = function() {
+      const dropdown = document.getElementById('hist-employee-filter-dropdown');
+      if (dropdown) dropdown.style.display = 'block';
+    };
+
+    window.hideHistoricalEmployeeFilterDropdown = function() {
+      const dropdown = document.getElementById('hist-employee-filter-dropdown');
+      if (dropdown) dropdown.style.display = 'none';
+    };
+
+    window.selectHistoricalEmployeeFilter = function(employeeId, name) {
+      const searchInput = document.getElementById('hist-employee-filter-search');
+      const hiddenInput = document.getElementById('hist-employee-filter');
+
+      searchInput.value = `${name} (${employeeId})`;
+      hiddenInput.value = employeeId;
+      selectedHistoricalEmployee = employeeId;
+
+      hideHistoricalEmployeeFilterDropdown();
+
+      // Show content section and pre-fill form
+      document.getElementById('hist-content-section').style.display = 'block';
+      document.getElementById('hist-employee-name').value = `${name} (${employeeId})`;
+      document.getElementById('hist-employee').value = employeeId;
+
+      // Activate the "Add Historical Balance" tab as default
+      const addTab = document.getElementById('tab-add-hist');
+      if (addTab) {
+        addTab.click();
+      }
+
+      // Load historical balances for this employee
+      loadHistoricalBalances();
+
+      // Check if employee has overtime logs and disable historical balance actions
+      checkEmployeeHasOvertimeLogs(employeeId);
+    };
+
+    async function checkEmployeeHasOvertimeLogs(employeeId) {
+      try {
+        const result = await new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(reject)
+            .checkEmployeeHasOvertimeLogs_SERVER(employeeId);
+        });
+
+        if (result.hasLogs) {
+          // Disable form fields
+          document.getElementById('hist-month-year').disabled = true;
+          document.getElementById('hist-date-issuance').disabled = true;
+          document.getElementById('hist-coc-earned').disabled = true;
+          document.getElementById('hist-coc-used').disabled = true;
+          document.getElementById('hist-submit-btn').disabled = true;
+
+          // Show warning message
+          const warningHTML = `
+            <div class="alert alert-warning">
+              <i class="bi bi-exclamation-triangle-fill"></i>
+              <strong>Historical Balance Locked:</strong> This employee has already logged overtime.
+              Historical balance cannot be added or modified to prevent data inconsistency.
+            </div>
+          `;
+          const formCard = document.querySelector('#content-add-hist .card-body');
+          if (formCard && !formCard.querySelector('.alert-warning')) {
+            formCard.insertAdjacentHTML('afterbegin', warningHTML);
+          }
+        } else {
+          // Enable form fields
+          document.getElementById('hist-month-year').disabled = false;
+          document.getElementById('hist-coc-earned').disabled = false;
+          document.getElementById('hist-coc-used').disabled = false;
+          document.getElementById('hist-submit-btn').disabled = false;
+
+          // Remove warning if exists
+          const warning = document.querySelector('#content-add-hist .alert-warning');
+          if (warning) warning.remove();
+        }
+
+        // Return the result for use in rendering table
+        return result.hasLogs;
+      } catch (error) {
+        console.error('Error checking overtime logs:', error);
+        return false;
+      }
+    }
+
+    function renderEmployeesWithoutHistoricalBalance() {
+      const container = document.getElementById('employees-no-hist-list');
+      if (!container) return;
+
+      // Get all active employees
+      const activeEmployees = employeesData.filter(emp => emp.isActive);
+
+      // Get employees with historical balance (from Firestore)
+      const db = getFirestore();
+      const q = query(
+        collection(db, 'creditBatches'),
+        where('source', '==', 'Historical')
+      );
+
+      onSnapshot(q, (snapshot) => {
+        const employeesWithHist = new Set();
+        snapshot.forEach(doc => {
+          const batch = doc.data();
+          employeesWithHist.add(batch.employeeId);
+        });
+
+        const employeesWithoutHist = activeEmployees.filter(emp =>
+          !employeesWithHist.has(emp.employeeId)
+        );
+
+        if (employeesWithoutHist.length === 0) {
+          container.innerHTML = '<span class="text-success"><i class="bi bi-check-circle-fill"></i> All active employees have historical balance migrated!</span>';
+        } else {
+          container.innerHTML = employeesWithoutHist.map(emp => `
+            <span class="badge bg-warning text-dark" style="cursor: pointer;"
+                  onclick="selectHistoricalEmployeeFilter('${emp.employeeId}', '${emp.lastName}, ${emp.firstName}')"
+                  title="Click to add historical balance for this employee">
+              ${emp.lastName}, ${emp.firstName} (${emp.employeeId})
+            </span>
+          `).join('');
+        }
+      });
+    }
+
+    // Click outside to close dropdown
+    document.addEventListener('click', function(e) {
+      const container = document.querySelector('#hist-employee-filter-search')?.closest('.searchable-select-container');
+      if (container && !container.contains(e.target)) {
+        hideHistoricalEmployeeFilterDropdown();
+      }
+    });
+
+    function populateHistoricalEmployeeDropdown() {
+      const dropdown = document.getElementById('hist-employee-list');
+      if (!dropdown) return;
+
+      const activeEmployees = employeesData.filter(emp => emp.isActive);
+
+      if (activeEmployees.length === 0) {
+        dropdown.innerHTML = '<div class="dropdown-no-results">No active employees found</div>';
+        return;
+      }
+
+      dropdown.innerHTML = activeEmployees.map(emp => `
+        <div class="dropdown-item-custom" onclick="selectHistoricalEmployee('${emp.employeeId}', '${emp.lastName}, ${emp.firstName}')">
+          <span class="employee-name">${emp.lastName}, ${emp.firstName}</span>
+          <span class="employee-details">${emp.employeeId} • ${emp.office} • ${emp.position}</span>
+        </div>
+      `).join('');
+    }
+
+    window.filterHistoricalEmployees = function() {
+      const searchInput = document.getElementById('hist-employee-search');
+      const dropdown = document.getElementById('hist-employee-list');
+      const searchTerm = searchInput.value.toLowerCase().trim();
+
+      const activeEmployees = employeesData.filter(emp => emp.isActive);
+      let filteredEmployees = activeEmployees;
+
+      if (searchTerm) {
+        filteredEmployees = activeEmployees.filter(emp => {
+          const fullName = `${emp.firstName} ${emp.lastName}`.toLowerCase();
+          const reverseName = `${emp.lastName} ${emp.firstName}`.toLowerCase();
+          const employeeId = emp.employeeId.toLowerCase();
+          return fullName.includes(searchTerm) ||
+                 reverseName.includes(searchTerm) ||
+                 employeeId.includes(searchTerm);
+        });
+      }
+
+      if (filteredEmployees.length === 0) {
+        dropdown.innerHTML = '<div class="dropdown-no-results">No employees found</div>';
+      } else {
+        dropdown.innerHTML = filteredEmployees.map(emp => `
+          <div class="dropdown-item-custom" onclick="selectHistoricalEmployee('${emp.employeeId}', '${emp.lastName}, ${emp.firstName}')">
+            <span class="employee-name">${emp.lastName}, ${emp.firstName}</span>
+            <span class="employee-details">${emp.employeeId} • ${emp.office} • ${emp.position}</span>
+          </div>
+        `).join('');
+      }
+
+      showHistoricalEmployeeDropdown();
+    };
+
+    window.showHistoricalEmployeeDropdown = function() {
+      const dropdown = document.getElementById('hist-employee-dropdown');
+      if (dropdown) dropdown.style.display = 'block';
+    };
+
+    window.hideHistoricalEmployeeDropdown = function() {
+      const dropdown = document.getElementById('hist-employee-dropdown');
+      if (dropdown) dropdown.style.display = 'none';
+    };
+
+    window.selectHistoricalEmployee = function(employeeId, name) {
+      const searchInput = document.getElementById('hist-employee-search');
+      const hiddenInput = document.getElementById('hist-employee');
+
+      searchInput.value = `${name} (${employeeId})`;
+      hiddenInput.value = employeeId;
+
+      hideHistoricalEmployeeDropdown();
+    };
+
+    // Enable Date of Issuance when Month & Year is selected
+    window.enableDateOfIssuance = function() {
+      const monthYear = document.getElementById('hist-month-year').value;
+      const dateIssuance = document.getElementById('hist-date-issuance');
+
+      if (monthYear) {
+        dateIssuance.disabled = false;
+
+        // Set min and max dates based on the selected month
+        const [year, month] = monthYear.split('-');
+        const earnedYear = parseInt(year);
+        const earnedMonth = parseInt(month);
+
+        // Helper function to format date as YYYY-MM-DD without timezone issues
+        const formatDate = (date) => {
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        };
+
+        // Min: Last day of earned month (e.g., Jan 31, 2024 for January 2024)
+        const lastDayOfEarnedMonth = new Date(earnedYear, earnedMonth, 0);
+        const minDate = formatDate(lastDayOfEarnedMonth);
+
+        // Max: Last day of the month AFTER the earned month
+        // (e.g., Feb 29, 2024 for January 2024, or Jan 31, 2025 for December 2024)
+        const lastDayOfNextMonth = new Date(earnedYear, earnedMonth + 1, 0);
+        const maxDate = formatDate(lastDayOfNextMonth);
+
+        // Default: 1st day of the month AFTER the earned month
+        // (e.g., Feb 1, 2024 for January 2024, or Jan 1, 2025 for December 2024)
+        const firstDayOfNextMonth = new Date(earnedYear, earnedMonth, 1);
+        const defaultDate = formatDate(firstDayOfNextMonth);
+
+        dateIssuance.min = minDate;
+        dateIssuance.max = maxDate;
+
+        // Set default value to the 1st day of the month AFTER the earned month
+        dateIssuance.value = defaultDate;
+      } else {
+        dateIssuance.disabled = true;
+        dateIssuance.value = '';
+      }
+
+      validateHistoricalFields();
+    };
+
+    // Live validation for Historical Balance fields
+    window.validateHistoricalFields = function() {
+      const earnedInput = document.getElementById('hist-coc-earned');
+      const usedInput = document.getElementById('hist-coc-used');
+      const earnedValue = parseFloat(earnedInput.value) || 0;
+      const usedValue = parseFloat(usedInput.value) || 0;
+
+      // Validate COC Earned (max 40)
+      if (earnedValue > 40) {
+        earnedInput.classList.add('is-invalid');
+        document.getElementById('hist-earned-feedback').textContent = 'Cannot exceed 40 hours per month';
+      } else if (earnedValue < 0) {
+        earnedInput.classList.add('is-invalid');
+        document.getElementById('hist-earned-feedback').textContent = 'Must be a positive number';
+      } else {
+        earnedInput.classList.remove('is-invalid');
+      }
+
+      // Validate COC Used (must be in blocks of 4 or 8, and <= earned)
+      if (usedValue > earnedValue) {
+        usedInput.classList.add('is-invalid');
+        document.getElementById('hist-used-feedback').textContent = 'Cannot exceed COC Earned';
+      } else if (usedValue > 0 && usedValue % 4 !== 0) {
+        usedInput.classList.add('is-invalid');
+        document.getElementById('hist-used-feedback').textContent = 'Must be in blocks of 4 hours (4, 8, 12, 16, etc.)';
+      } else if (usedValue < 0) {
+        usedInput.classList.add('is-invalid');
+        document.getElementById('hist-used-feedback').textContent = 'Must be a positive number';
+      } else {
+        usedInput.classList.remove('is-invalid');
+      }
+
+      // Update auto-calculated fields
+      calculateHistoricalRemaining();
+    };
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(event) {
+      const histContainer = document.querySelector('#hist-employee-dropdown')?.parentElement;
+      const histDropdown = document.getElementById('hist-employee-dropdown');
+
+      if (histContainer && histDropdown && !histContainer.contains(event.target)) {
+        hideHistoricalEmployeeDropdown();
+      }
+    });
+
+    async function loadDashboard() {
+      const batchesQ = query(collection(db, 'creditBatches'), where('status', '==', 'Active'));
+      const logsQ = query(collection(db, 'overtimeLogs'), where('status', '==', 'Uncertified'));
+
+      onSnapshot(batchesQ, (snapshot) => {
+        let totalLiability = 0;
+        let expiringSoon = 0;
+        const today = new Date();
+        const thirtyDays = new Date(today);
+        thirtyDays.setDate(today.getDate() + 30);
+
+        snapshot.forEach((doc) => {
+          const batch = doc.data();
+          totalLiability += batch.remainingHours;
+          const expiryDate = new Date(batch.expiryDate);
+          if (expiryDate <= thirtyDays) {
+            expiringSoon += batch.remainingHours;
+          }
+        });
+
+        document.getElementById('stat-total-liability').textContent = totalLiability.toFixed(2);
+        document.getElementById('stat-expiring-soon').textContent = expiringSoon.toFixed(2);
+        
+        renderAlerts(expiringSoon, snapshot.docs.length);
+      });
+
+      onSnapshot(logsQ, (snapshot) => {
+        document.getElementById('stat-uncertified').textContent = snapshot.size;
+      });
+
+      const empQ = query(collection(db, 'employees'), where('isActive', '==', true));
+      onSnapshot(empQ, (snapshot) => {
+        document.getElementById('stat-active-employees').textContent = snapshot.size;
+      });
+    }
+
+    function renderAlerts(expiringSoon, totalBatches) {
+      const container = document.getElementById('alerts-container');
+      let html = '';
+
+      if (expiringSoon > 0) {
+        html += `
+          <div class="alert-item warning">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            <strong>Expiring Credits:</strong> ${expiringSoon.toFixed(2)} hours will expire in the next 30 days
+          </div>
+        `;
+      }
+
+      if (totalBatches > 50) {
+        html += `
+          <div class="alert-item info">
+            <i class="bi bi-info-circle-fill"></i>
+            <strong>Active Batches:</strong> There are ${totalBatches} active credit batches in the system
+          </div>
+        `;
+      }
+
+      if (html === '') {
+        html = '<p class="text-muted">No alerts at this time</p>';
+      }
+
+      container.innerHTML = html;
+    }
+
+    function loadHolidays() {
+      const q = query(collection(db, 'holidays'), orderBy('date', 'desc'));
+      onSnapshot(q, (snapshot) => {
+        const tbody = document.getElementById('holidaysTableBody');
+        if (snapshot.empty) {
+          tbody.innerHTML = '<tr><td colspan="5" class="text-center">No holidays found</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = snapshot.docs.map(doc => {
+          const hol = doc.data();
+          const date = new Date(hol.date);
+          return `
+            <tr>
+              <td>${date.toLocaleDateString('en-US', { timeZone: 'Asia/Manila' })}</td>
+              <td>${hol.name}</td>
+              <td><span class="badge ${hol.type === 'Regular' ? 'bg-danger' : 'bg-warning'}">${hol.type}</span></td>
+              <td>${hol.isRecurring ? 'Yes' : 'No'}</td>
+              <td>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteHoliday('${doc.id}')">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      });
+    }
+
+    function loadConfiguration() {
+      console.log('Loading configuration from Firestore...');
+      
+      const configRef = doc(db, 'configuration', 'accrualRules');
+      
+      const unsubscribe = onSnapshot(configRef, 
+        (docSnap) => {
+          console.log('Configuration snapshot received');
+          
+          if (docSnap.exists()) {
+            const config = docSnap.data();
+            console.log('Configuration data:', config);
+            
+            document.getElementById('config-regular').value = config.regularDayMultiplier ?? 1.25;
+            document.getElementById('config-restday').value = config.restDayMultiplier ?? 1.30;
+            document.getElementById('config-holiday').value = config.holidayMultiplier ?? 2.00;
+            document.getElementById('config-monthly-cap').value = config.monthlyAccrualCap ?? 40;
+            document.getElementById('config-total-cap').value = config.totalBalanceCap ?? 120;
+            document.getElementById('config-expiry-months').value = config.expiryMonths ?? 12;
+            
+            console.log('Configuration loaded successfully');
+          } else {
+            console.error('Configuration document does not exist');
+          }
+        },
+        (error) => {
+          console.error('Error loading configuration:', error);
+        }
+      );
+      
+      unsubscribers.push(unsubscribe);
+    }
+
+    function loadLibraries() {
+      ['offices', 'positions'].forEach(libType => {
+        const q = query(collection(db, 'libraries', libType, 'items'), orderBy('name'));
+        onSnapshot(q, (snapshot) => {
+          // Store library data for filtering
+          librariesData[libType] = [];
+          snapshot.forEach((doc) => {
+            librariesData[libType].push({ id: doc.id, ...doc.data() });
+          });
+
+          // Only render the offices tab initially for better performance
+          // Positions tab will be rendered when user switches to it
+          if (libType === 'offices') {
+            renderLibraryTable(libType);
+          }
+          populateLibraryDropdowns(libType, snapshot.docs);
+        });
+      });
+    }
+
+    function renderLibraryTable(libType) {
+      const container = document.getElementById(`${libType}-list`);
+      let items = librariesData[libType];
+
+      // Apply search filter
+      if (librarySearchTerms[libType]) {
+        items = items.filter(item => {
+          const searchLower = librarySearchTerms[libType].toLowerCase();
+          return item.name.toLowerCase().includes(searchLower);
+        });
+      }
+
+      if (items.length === 0) {
+        const message = librarySearchTerms[libType] ? 'No items match your search' : 'No items found';
+        container.innerHTML = `<tr><td colspan="2" class="text-center text-muted">${message}</td></tr>`;
+        return;
+      }
+
+      container.innerHTML = items.map(item => {
+        return `
+          <tr>
+            <td>${item.name}</td>
+            <td>
+              <button class="btn btn-sm btn-outline-primary me-1" onclick="editLibraryItem('${libType}', '${item.id}', '${item.name}')">
+                <i class="bi bi-pencil"></i>
+              </button>
+              <button class="btn btn-sm btn-outline-danger" onclick="deleteLibraryItem('${libType}', '${item.id}', '${item.name}')">
+                <i class="bi bi-trash"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    window.filterLibrary = function(type) {
+      const searchInput = document.getElementById(`search-${type}`);
+      const clearBtn = document.getElementById(`clear-${type}-search`);
+
+      librarySearchTerms[type] = searchInput.value;
+
+      // Show/hide clear button
+      if (searchInput.value) {
+        clearBtn.classList.add('visible');
+      } else {
+        clearBtn.classList.remove('visible');
+      }
+
+      renderLibraryTable(type);
+    };
+
+    window.clearLibrarySearch = function(type) {
+      const searchInput = document.getElementById(`search-${type}`);
+      const clearBtn = document.getElementById(`clear-${type}-search`);
+
+      searchInput.value = '';
+      librarySearchTerms[type] = '';
+      clearBtn.classList.remove('visible');
+
+      renderLibraryTable(type);
+    };
+
+    function populateLibraryDropdowns(libType, docs) {
+      const selectId = libType === 'offices' ? 'emp-office' : 'emp-position';
+      const select = document.getElementById(selectId);
+      select.innerHTML = '<option value="">Select</option>';
+      docs.forEach(doc => {
+        const item = doc.data();
+        select.innerHTML += `<option value="${item.name}">${item.name}</option>`;
+      });
+    }
+
+    window.loadUncertifiedLogs = async function() {
+      const employeeId = document.getElementById('cert-employee').value;
+      if (!employeeId) return;
+
+      const q = query(
+        collection(db, 'overtimeLogs'),
+        where('employeeId', '==', employeeId),
+        where('status', '==', 'Uncertified'),
+        orderBy('overtimeDate', 'desc')
+      );
+
+      onSnapshot(q, (snapshot) => {
+        const tbody = document.getElementById('uncertifiedLogsBody');
+        if (snapshot.empty) {
+          tbody.innerHTML = '<tr><td colspan="6" class="text-center">No uncertified logs</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = snapshot.docs.map(doc => {
+          const log = doc.data();
+          const date = new Date(log.overtimeDate);
+          return `
+            <tr>
+              <td><input type="checkbox" class="log-checkbox" data-logid="${log.logId}" data-hours="${log.earnedHours}" onchange="updateSelectedTotal()"></td>
+              <td>${date.toLocaleDateString('en-US', { timeZone: 'Asia/Manila' })}</td>
+              <td>${log.hoursWorked}</td>
+              <td><span class="badge bg-secondary">${log.dayType}</span></td>
+              <td>${log.multiplier}x</td>
+              <td><strong>${log.earnedHours.toFixed(2)}</strong></td>
+            </tr>
+          `;
+        }).join('');
+      });
+    };
+
+    window.updateSelectedTotal = function() {
+      const checkboxes = document.querySelectorAll('.log-checkbox:checked');
+      let total = 0;
+      checkboxes.forEach(cb => {
+        total += parseFloat(cb.dataset.hours);
+      });
+      document.getElementById('total-selected-hours').textContent = total.toFixed(2);
+    };
+
+    window.loadEmployeeLedger = async function() {
+      const employeeId = document.getElementById('ledger-employee').value;
+      if (!employeeId) return;
+
+      const batchesQ = query(
+        collection(db, 'creditBatches'),
+        where('employeeId', '==', employeeId),
+        where('status', '==', 'Active')
+      );
+
+      onSnapshot(batchesQ, (snapshot) => {
+        let balance = 0;
+        snapshot.forEach(doc => {
+          balance += doc.data().remainingHours;
+        });
+        document.getElementById('ledger-balance').textContent = balance.toFixed(2);
+      });
+
+      const ledgerQ = query(
+        collection(db, 'ledger'),
+        where('employeeId', '==', employeeId),
+        orderBy('transactionDate', 'desc')
+      );
+
+      onSnapshot(ledgerQ, (snapshot) => {
+        const tbody = document.getElementById('ledgerTableBody');
+        if (snapshot.empty) {
+          tbody.innerHTML = '<tr><td colspan="6" class="text-center">No transactions</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = snapshot.docs.map(doc => {
+          const ledger = doc.data();
+          const date = new Date(ledger.transactionDate);
+          const hoursClass = ledger.hoursChange >= 0 ? 'text-success' : 'text-danger';
+          return `
+            <tr>
+              <td>${date.toLocaleDateString('en-US', { timeZone: 'Asia/Manila' })}</td>
+              <td><span class="badge bg-info">${ledger.transactionType}</span></td>
+              <td>${ledger.referenceId}</td>
+              <td class="${hoursClass}"><strong>${ledger.hoursChange >= 0 ? '+' : ''}${ledger.hoursChange.toFixed(2)}</strong></td>
+              <td>${ledger.balanceAfter.toFixed(2)}</td>
+              <td>${ledger.remarks}</td>
+            </tr>
+          `;
+        }).join('');
+      });
+    };
+
+    window.showCtoBalance = async function() {
+      const employeeId = document.getElementById('cto-employee').value;
+      if (!employeeId) {
+        document.getElementById('cto-available-balance').textContent = '0.00';
+        return;
+      }
+
+      const q = query(
+        collection(db, 'creditBatches'),
+        where('employeeId', '==', employeeId),
+        where('status', '==', 'Active')
+      );
+
+      onSnapshot(q, (snapshot) => {
+        let balance = 0;
+        snapshot.forEach(doc => {
+          balance += doc.data().remainingHours;
+        });
+        document.getElementById('cto-available-balance').textContent = balance.toFixed(2);
+      });
+    };
+
+    window.calculateHistoricalRemaining = function() {
+      const earned = parseFloat(document.getElementById('hist-coc-earned').value) || 0;
+      const used = parseFloat(document.getElementById('hist-coc-used').value) || 0;
+      const dateIssuance = document.getElementById('hist-date-issuance').value;
+
+      const remaining = earned - used;
+      document.getElementById('hist-remaining').value = remaining >= 0 ? remaining.toFixed(2) + ' hours' : 'Invalid';
+
+      let validUntil = null;
+      if (dateIssuance) {
+        const issuanceDate = new Date(dateIssuance);
+        validUntil = new Date(issuanceDate);
+        validUntil.setFullYear(validUntil.getFullYear() + 1);
+        validUntil.setDate(validUntil.getDate() - 1);
+
+        const options = { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Manila' };
+        document.getElementById('hist-valid-until').value = validUntil.toLocaleDateString('en-US', options);
+      } else {
+        document.getElementById('hist-valid-until').value = '';
+      }
+
+      // Calculate status with expiry check
+      let status;
+      if (remaining < 0) {
+        status = 'Invalid';
+      } else if (remaining === 0) {
+        status = 'Used';
+      } else {
+        // Has remaining hours - check if expired
+        if (validUntil) {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const expiry = new Date(validUntil);
+          expiry.setHours(0, 0, 0, 0);
+
+          // "Valid Until Nov 11" means valid through entire day of Nov 11
+          // Should only expire on Nov 12 onwards
+          if (today > expiry) {
+            status = 'Expired';
+          } else {
+            status = 'Active';
+          }
+        } else {
+          status = 'Active';
+        }
+      }
+
+      document.getElementById('hist-status').value = status;
+    };
+
+    document.getElementById('hist-date-issuance').addEventListener('change', calculateHistoricalRemaining);
+
+    // Historical Balances List Management
+    let historicalBalancesData = [];
+
+    function loadHistoricalBalances() {
+      if (!selectedHistoricalEmployee) {
+        const tbody = document.getElementById('historicalBalancesTableBody');
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">Select an employee above to view their historical balances</td></tr>`;
+        return;
+      }
+
+      console.log('Loading historical balances for employee:', selectedHistoricalEmployee);
+
+      // Simpler query - only filter by employeeId, then filter source client-side
+      const q = query(
+        collection(db, 'creditBatches'),
+        where('employeeId', '==', selectedHistoricalEmployee)
+      );
+
+      const unsubscribe = onSnapshot(q,
+        async (snapshot) => {
+          console.log('Snapshot received, docs count:', snapshot.docs.length);
+          historicalBalancesData = [];
+
+          for (const docSnapshot of snapshot.docs) {
+            const batch = docSnapshot.data();
+            console.log('Batch data:', batch);
+
+            // Filter by source on client-side to avoid composite index requirement
+            if (batch.source === 'Historical') {
+              historicalBalancesData.push({
+                id: docSnapshot.id,
+                ...batch
+              });
+            }
+          }
+
+          console.log('Filtered historical balances:', historicalBalancesData.length);
+
+          // Sort by monthYear descending (client-side)
+          historicalBalancesData.sort((a, b) => {
+            if (a.monthYear && b.monthYear) {
+              return b.monthYear.localeCompare(a.monthYear);
+            }
+            return 0;
+          });
+
+          renderHistoricalBalancesTable();
+        },
+        (error) => {
+          console.error('Error loading historical balances:', error);
+          const tbody = document.getElementById('historicalBalancesTableBody');
+          tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">Error loading data: ${error.message}</td></tr>`;
+        }
+      );
+
+      unsubscribers.push(unsubscribe);
+    }
+
+    function renderHistoricalBalancesTable() {
+      const tbody = document.getElementById('historicalBalancesTableBody');
+
+      if (historicalBalancesData.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">No historical balances found for this employee</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = historicalBalancesData.map(batch => {
+        // Convert Firestore Timestamps to JavaScript Dates
+        const convertDate = (dateField) => {
+          if (!dateField) return '-';
+          // Handle Firestore Timestamp
+          if (dateField.toDate) return dateField.toDate();
+          // Handle string dates
+          if (typeof dateField === 'string') return new Date(dateField);
+          // Already a Date object
+          if (dateField instanceof Date) return dateField;
+          return new Date(dateField);
+        };
+
+        const issuanceDate = convertDate(batch.dateOfIssuance);
+        const expiryDate = convertDate(batch.expiryDate);
+
+        const issuedDate = issuanceDate !== '-' ? issuanceDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '-';
+        const validUntilDate = expiryDate !== '-' ? expiryDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '-';
+
+        // Format month/year
+        const monthYear = batch.monthYear || '-';
+
+        // Dynamic status calculation (checked at runtime)
+        let actualStatus = batch.status;
+        let statusBadge = '';
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // Reset to start of day for comparison
+
+        // Determine status based on remaining hours and expiry date
+        if (batch.remainingHours === 0 || batch.remainingHours === undefined) {
+          actualStatus = 'Used';
+        } else if (batch.remainingHours > 0) {
+          // Has remaining hours - check if expired
+          if (expiryDate !== '-') {
+            const expiry = new Date(expiryDate);
+            expiry.setHours(0, 0, 0, 0);
+
+            // If current date is AFTER expiry date (not on the expiry date itself), mark as expired
+            // "Valid Until Nov 11" means valid through the entire day of Nov 11
+            // Should only expire on Nov 12 onwards
+            if (today > expiry) {
+              actualStatus = 'Expired';
+            } else {
+              actualStatus = 'Active';
+            }
+          } else {
+            // No expiry date but has remaining hours - mark as Active
+            actualStatus = 'Active';
+          }
+        }
+
+        // Status badge based on actual (dynamic) status
+        if (actualStatus === 'Active') {
+          statusBadge = '<span class="badge bg-success">Active</span>';
+        } else if (actualStatus === 'Used') {
+          statusBadge = '<span class="badge bg-secondary">Used</span>';
+        } else if (actualStatus === 'Expired') {
+          statusBadge = '<span class="badge bg-danger">Expired</span>';
+        }
+
+        return `
+          <tr>
+            <td>${monthYear}</td>
+            <td>${batch.initialHours ? batch.initialHours.toFixed(1) : '0.0'}</td>
+            <td>${batch.usedHours ? batch.usedHours.toFixed(1) : '0.0'}</td>
+            <td><strong>${batch.remainingHours ? batch.remainingHours.toFixed(1) : '0.0'}</strong></td>
+            <td>${issuedDate}</td>
+            <td>${validUntilDate}</td>
+            <td>${statusBadge}</td>
+            <td>
+              <button class="btn btn-sm btn-outline-primary me-1" onclick="editHistoricalBalance('${batch.id}')" title="Edit" id="hist-edit-${batch.id}">
+                <i class="bi bi-pencil"></i>
+              </button>
+              <button class="btn btn-sm btn-outline-danger" onclick="deleteHistoricalBalance('${batch.id}')" title="Delete" id="hist-delete-${batch.id}">
+                <i class="bi bi-trash"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    window.deleteHistoricalBalance = async function(batchId) {
+      Modal.confirm(
+        'Delete Historical Balance',
+        'Are you sure you want to delete this historical balance entry? This action cannot be undone.',
+        async function() {
+          try {
+            const result = await new Promise((resolve, reject) => {
+              google.script.run
+                .withSuccessHandler(resolve)
+                .withFailureHandler(reject)
+                .deleteHistoricalBalance_SERVER(batchId);
+            });
+
+            if (result.success) {
+              Modal.success('Success!', 'Historical balance deleted successfully!');
+            } else {
+              Modal.error('Error', result.error);
+            }
+          } catch (error) {
+            Modal.error('Error', 'Error deleting historical balance: ' + error);
+          }
+        }
+      );
+    };
+
+    window.editHistoricalBalance = function(batchId) {
+      const batch = historicalBalancesData.find(b => b.id === batchId);
+      if (!batch) {
+        Modal.error('Error', 'Historical balance not found');
+        return;
+      }
+
+      // Populate form with batch data
+      document.getElementById('hist-batch-id').value = batchId;
+      document.getElementById('hist-is-edit').value = 'true';
+      document.getElementById('hist-month-year').value = batch.monthYear;
+      document.getElementById('hist-coc-earned').value = batch.initialHours || batch.earnedHours;
+      document.getElementById('hist-coc-used').value = batch.usedHours || 0;
+
+      // Enable and set Date of Issuance
+      enableDateOfIssuance();
+      const issuanceDate = batch.dateOfIssuance || batch.issueDate;
+      if (issuanceDate) {
+        const date = new Date(issuanceDate);
+        const formatDate = (d) => {
+          const year = d.getFullYear();
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        };
+        document.getElementById('hist-date-issuance').value = formatDate(date);
+      }
+
+      validateHistoricalFields();
+
+      // Update button text and show Cancel button
+      document.getElementById('hist-submit-text').textContent = 'Update';
+      document.getElementById('hist-cancel-btn').classList.remove('d-none');
+
+      // Switch to Add tab
+      document.getElementById('tab-add-hist').click();
+
+      // Scroll to form
+      document.getElementById('content-add-hist').scrollIntoView({ behavior: 'smooth' });
+    };
+
+    window.cancelEditHistoricalBalance = function() {
+      resetHistoricalForm();
+      // Switch to list tab
+      document.getElementById('tab-list-hist').click();
+    };
+
+    window.resetHistoricalForm = function() {
+      const form = document.getElementById('historicalForm');
+      const employeeName = document.getElementById('hist-employee-name').value;
+      const employeeId = document.getElementById('hist-employee').value;
+
+      form.reset();
+      form.classList.remove('was-validated');
+
+      // Clear hidden fields
+      document.getElementById('hist-batch-id').value = '';
+      document.getElementById('hist-is-edit').value = 'false';
+
+      // Restore employee info
+      document.getElementById('hist-employee-name').value = employeeName;
+      document.getElementById('hist-employee').value = employeeId;
+
+      // Reset date field
+      document.getElementById('hist-date-issuance').disabled = true;
+      document.getElementById('hist-date-issuance').value = '';
+
+      // Reset validation
+      document.getElementById('hist-coc-earned').classList.remove('is-invalid');
+      document.getElementById('hist-coc-used').classList.remove('is-invalid');
+
+      // Reset calculated fields
+      calculateHistoricalRemaining();
+
+      // Reset button text and hide Cancel button
+      document.getElementById('hist-submit-text').textContent = 'Migrate';
+      document.getElementById('hist-cancel-btn').classList.add('d-none');
+    };
+
+    window.generateCertificate = async function() {
+      const employeeId = document.getElementById('cert-employee').value;
+      const checkboxes = document.querySelectorAll('.log-checkbox:checked');
+      
+      if (!employeeId || checkboxes.length === 0) {
+        Modal.error('Validation Error', 'Please select an employee and at least one overtime log');
+        return;
+      }
+
+      const selectedLogIds = Array.from(checkboxes).map(cb => cb.dataset.logid);
+
+      try {
+        const result = await new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(reject)
+            .generateCertificate_SERVER({ employeeId, selectedLogIds });
+        });
+
+        if (result.success) {
+          const message = `Certificate ID: ${result.certificateId}\nTotal Hours: ${result.totalEarnedHours.toFixed(2)}`;
+          Modal.success('Certificate Generated!', message);
+          document.getElementById('cert-employee').value = '';
+          document.getElementById('uncertifiedLogsBody').innerHTML = '<tr><td colspan="6" class="text-center">Select an employee</td></tr>';
+          document.getElementById('total-selected-hours').textContent = '0.00';
+        } else {
+          Modal.error('Error', result.error);
+        }
+      } catch (error) {
+        Modal.error('Error', 'Error generating certificate: ' + error);
+      }
+    };
+
+    // ========== LOG OVERTIME FEATURE ==========
+
+    // Global state for overtime entries
+    let overtimeEntries = [];
+    let overtimeRowCounter = 0;
+    let overtimeMonthlyTotal = 0;
+    let overtimeTotalBalance = 0;
+
+    // Initialize year dropdown (current year and previous 2 years)
+    (function initializeOvertimeYearDropdown() {
+      const yearSelect = document.getElementById('ot-year');
+      const currentYear = new Date().getFullYear();
+      for (let i = 0; i < 3; i++) {
+        const year = currentYear - i;
+        const option = document.createElement('option');
+        option.value = year;
+        option.textContent = year;
+        if (i === 0) option.selected = true;
+        yearSelect.appendChild(option);
+      }
+    })();
+
+    // Filter overtime employees
+    window.filterOvertimeEmployees = function() {
+      const searchInput = document.getElementById('ot-employee-search');
+      const dropdown = document.getElementById('ot-employee-list');
+      const searchTerm = searchInput.value.toLowerCase().trim();
+
+      const activeEmployees = employeesData.filter(emp => emp.isActive);
+      let filteredEmployees = activeEmployees;
+
+      if (searchTerm) {
+        filteredEmployees = activeEmployees.filter(emp => {
+          const fullName = `${emp.firstName} ${emp.lastName}`.toLowerCase();
+          const reverseName = `${emp.lastName} ${emp.firstName}`.toLowerCase();
+          const employeeId = emp.employeeId.toLowerCase();
+          return fullName.includes(searchTerm) ||
+                 reverseName.includes(searchTerm) ||
+                 employeeId.includes(searchTerm);
+        });
+      }
+
+      if (filteredEmployees.length === 0) {
+        dropdown.innerHTML = '<div class="dropdown-item-custom text-muted">No employees found</div>';
+      } else {
+        dropdown.innerHTML = filteredEmployees.map(emp => `
+          <div class="dropdown-item-custom" onclick="selectOvertimeEmployee('${emp.employeeId}', '${emp.lastName}, ${emp.firstName}')">
+            <span class="employee-name">${emp.lastName}, ${emp.firstName}</span>
+            <span class="employee-details">${emp.employeeId} • ${emp.office} • ${emp.position}</span>
+          </div>
+        `).join('');
+      }
+
+      showOvertimeEmployeeDropdown();
+    };
+
+    window.showOvertimeEmployeeDropdown = function() {
+      const dropdown = document.getElementById('ot-employee-dropdown');
+      if (dropdown) dropdown.style.display = 'block';
+    };
+
+    window.hideOvertimeEmployeeDropdown = function() {
+      const dropdown = document.getElementById('ot-employee-dropdown');
+      if (dropdown) dropdown.style.display = 'none';
+    };
+
+    window.selectOvertimeEmployee = function(employeeId, name) {
+      const searchInput = document.getElementById('ot-employee-search');
+      const hiddenInput = document.getElementById('ot-employee');
+
+      searchInput.value = `${name} (${employeeId})`;
+      hiddenInput.value = employeeId;
+
+      hideOvertimeEmployeeDropdown();
+      updateOvertimeMonthOptions(); // Update month options based on employee/year
+    };
+
+    // Store original month names
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                        'July', 'August', 'September', 'October', 'November', 'December'];
+    const historicalBalanceCache = new Map();
+
+    function resetMonthOption(option) {
+      if (option.value === '') return;
+      const monthValue = parseInt(option.value);
+      option.disabled = false;
+      option.textContent = monthNames[monthValue];
+      option.classList.remove('text-muted');
+      delete option.dataset.state;
+    }
+
+    function applyFutureStates(monthSelect, selectedYear) {
+      const today = new Date();
+      const currentYear = today.getFullYear();
+      const currentMonth = today.getMonth();
+
+      Array.from(monthSelect.options).forEach(option => {
+        if (option.value === '') return;
+        const monthValue = parseInt(option.value);
+        const monthName = monthNames[monthValue];
+        const isFuture = (selectedYear > currentYear) || (selectedYear === currentYear && monthValue > currentMonth);
+
+        if (isFuture) {
+          option.disabled = true;
+          option.textContent = `${monthName} (Future)`;
+          option.classList.add('text-muted');
+          option.dataset.state = 'future';
+        } else {
+          option.dataset.state = 'available';
+        }
+      });
+    }
+
+    function applyHistoricalStates(monthSelect, historicalMonths) {
+      const historicalSet = new Set(historicalMonths);
+      Array.from(monthSelect.options).forEach(option => {
+        if (option.value === '' || option.dataset.state === 'future') return;
+        const monthValue = parseInt(option.value);
+        if (historicalSet.has(monthValue)) {
+          const monthName = monthNames[monthValue];
+          option.disabled = true;
+          option.textContent = `${monthName} (Historical Balance)`;
+          option.classList.add('text-muted');
+          option.dataset.state = 'historical';
+        }
+      });
+    }
+
+    function ensureValidMonthSelection(monthSelect) {
+      if (!monthSelect) return;
+      const selectedValue = monthSelect.value;
+      if (selectedValue === '') return;
+      const selectedOption = monthSelect.options[monthSelect.selectedIndex];
+      if (!selectedOption || selectedOption.disabled) {
+        monthSelect.value = '';
+      }
+    }
+
+    // Update month options to disable future months and months with historical balance
+    window.updateOvertimeMonthOptions = async function() {
+      const employeeId = document.getElementById('ot-employee').value;
+      const yearInput = document.getElementById('ot-year').value;
+      const monthSelect = document.getElementById('ot-month');
+
+      if (!monthSelect) {
+        return;
+      }
+
+      Array.from(monthSelect.options).forEach(resetMonthOption);
+
+      if (!employeeId || !yearInput) {
+        ensureValidMonthSelection(monthSelect);
+        updateOvertimeContext();
+        return;
+      }
+
+      const year = parseInt(yearInput);
+      applyFutureStates(monthSelect, year);
+      ensureValidMonthSelection(monthSelect);
+
+      const cacheKey = `${employeeId}-${year}`;
+      const cachedMonths = historicalBalanceCache.get(cacheKey);
+      if (cachedMonths) {
+        applyHistoricalStates(monthSelect, cachedMonths);
+        ensureValidMonthSelection(monthSelect);
+        updateOvertimeContext();
+        return;
+      }
+
+      try {
+        const histResult = await new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(reject)
+            .getHistoricalBalanceMonths_SERVER(employeeId, year);
+        });
+
+        const historicalMonths = Array.isArray(histResult.months) ? histResult.months : [];
+        historicalBalanceCache.set(cacheKey, historicalMonths);
+        applyHistoricalStates(monthSelect, historicalMonths);
+      } catch (error) {
+        console.error('Error updating month options:', error);
+      } finally {
+        ensureValidMonthSelection(monthSelect);
+        updateOvertimeContext();
+      }
+    };
+
+    // Update overtime context (when employee/month/year changes)
+    window.updateOvertimeContext = async function() {
+      const employeeId = document.getElementById('ot-employee').value;
+      const month = document.getElementById('ot-month').value;
+      const year = document.getElementById('ot-year').value;
+
+      const alertContainer = document.getElementById('ot-alert-container');
+      const loadingContainer = document.getElementById('ot-entry-loading');
+      const tableWrapper = document.getElementById('ot-entry-table-wrapper');
+      const entrySection = document.getElementById('ot-entry-section');
+      const totalSection = document.getElementById('ot-total-section');
+      const submitSection = document.getElementById('ot-submit-section');
+
+      const hideEntryContent = () => {
+        if (loadingContainer) loadingContainer.classList.remove('active');
+        if (tableWrapper) tableWrapper.classList.add('d-none');
+      };
+
+      const toggleEntryLoading = (isLoading) => {
+        if (!loadingContainer || !tableWrapper) return;
+        if (isLoading) {
+          loadingContainer.classList.add('active');
+          tableWrapper.classList.add('d-none');
+        } else {
+          loadingContainer.classList.remove('active');
+          tableWrapper.classList.remove('d-none');
+        }
+      };
+
+      alertContainer.innerHTML = '';
+
+      if (!employeeId || month === '' || !year) {
+        // Hide all sections if incomplete
+        document.getElementById('ot-progress-section').style.display = 'none';
+        if (entrySection) entrySection.style.display = 'none';
+        if (totalSection) totalSection.style.display = 'none';
+        if (submitSection) submitSection.style.display = 'none';
+        hideEntryContent();
+        return;
+      }
+
+      // Show progress section and loading state
+      document.getElementById('ot-progress-section').style.display = 'flex';
+      if (entrySection) entrySection.style.display = 'block';
+      if (totalSection) totalSection.style.display = 'none';
+      if (submitSection) submitSection.style.display = 'none';
+      toggleEntryLoading(true);
+
+      try {
+        // Check for certificate or historical balance blocking
+        const blockCheck = await new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(reject)
+            .checkOvertimeBlocks_SERVER(employeeId, parseInt(month), parseInt(year));
+        });
+
+        if (!blockCheck.success) {
+          alertContainer.innerHTML = `
+            <div class="alert alert-danger">
+              <i class="bi bi-exclamation-triangle-fill"></i>
+              <strong>Blocked:</strong> ${blockCheck.error}
+            </div>
+          `;
+          if (entrySection) entrySection.style.display = 'none';
+          if (totalSection) totalSection.style.display = 'none';
+          if (submitSection) submitSection.style.display = 'none';
+          hideEntryContent();
+          return;
+        }
+
+        // Load existing uncertified logs for this month
+        const existingLogs = await new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(reject)
+            .getUncertifiedOvertimeForMonth_SERVER(employeeId, parseInt(month), parseInt(year));
+        });
+
+        // Calculate monthly total
+        overtimeMonthlyTotal = existingLogs.reduce((sum, log) => sum + Number(log.earnedHours || 0), 0);
+
+        // Get total balance (Active + Uncertified)
+        const balanceData = await new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(reject)
+            .getTotalBalance_SERVER(employeeId);
+        });
+
+        if (!balanceData.success) {
+          throw new Error(balanceData.error || 'Unable to retrieve total balance');
+        }
+
+        const activeBalance = Number(balanceData.active || 0);
+        const uncertifiedBalance = Number(balanceData.uncertified || 0);
+        overtimeTotalBalance = activeBalance + uncertifiedBalance;
+
+        // Update progress bars
+        updateOvertimeProgress();
+
+        // Show entry section
+        toggleEntryLoading(false);
+        if (entrySection) entrySection.style.display = 'block';
+        if (totalSection) totalSection.style.display = 'block';
+        if (submitSection) submitSection.style.display = 'block';
+
+        // Clear existing entries
+        overtimeEntries = [];
+        document.getElementById('ot-entries-tbody').innerHTML = '';
+        calculateOvertimeGrandTotal();
+
+      } catch (error) {
+        console.error('Error updating overtime context:', error);
+        Modal.error('Error', 'Failed to load overtime context: ' + error);
+        hideEntryContent();
+        if (entrySection) entrySection.style.display = 'none';
+        if (totalSection) totalSection.style.display = 'none';
+        if (submitSection) submitSection.style.display = 'none';
+      }
+    };
+
+    // Update progress bars
+    function updateOvertimeProgress() {
+      // Monthly accrual (current + entries)
+      const entriesTotal = overtimeEntries.reduce((sum, entry) => sum + Number(entry.cocEarned || 0), 0);
+      const monthlyTotal = overtimeMonthlyTotal + entriesTotal;
+      const monthlyPercent = Math.min((monthlyTotal / 40) * 100, 100);
+
+      document.getElementById('ot-monthly-hours').textContent = monthlyTotal.toFixed(1);
+      const monthlyBar = document.getElementById('ot-monthly-progress');
+      monthlyBar.style.width = monthlyPercent + '%';
+      monthlyBar.className = monthlyPercent >= 100 ? 'progress-bar bg-danger' :
+                             monthlyPercent >= 80 ? 'progress-bar bg-warning' :
+                             'progress-bar bg-success';
+
+      // Total balance - ensure overtimeTotalBalance is defined
+      const currentOvertimeBalance = (typeof overtimeTotalBalance !== 'undefined') ? overtimeTotalBalance : 0;
+      const totalBalance = currentOvertimeBalance + entriesTotal;
+      const totalPercent = Math.min((totalBalance / 120) * 100, 100);
+
+      document.getElementById('ot-total-hours').textContent = totalBalance.toFixed(1);
+      const totalBar = document.getElementById('ot-total-progress');
+      totalBar.style.width = totalPercent + '%';
+      totalBar.className = totalPercent >= 100 ? 'progress-bar bg-danger' :
+                           totalPercent >= 80 ? 'progress-bar bg-warning' :
+                           'progress-bar bg-success';
+    }
+
+    // Add overtime day row
+    window.addOvertimeDay = function() {
+      const rowId = ++overtimeRowCounter;
+      const tbody = document.getElementById('ot-entries-tbody');
+
+      const row = document.createElement('tr');
+      row.id = `ot-row-${rowId}`;
+      row.innerHTML = `
+        <td>
+          <input type="number" class="form-control form-control-sm" id="ot-date-${rowId}" min="1" max="31"
+                 placeholder="Day" inputmode="numeric" onchange="onOvertimeDateChange(${rowId})" required>
+        </td>
+        <td>
+          <span class="badge bg-secondary" id="ot-daytype-${rowId}">-</span>
+        </td>
+        <td>
+          <input type="time" class="form-control form-control-sm" id="ot-am-in-${rowId}"
+                 onchange="calculateOvertimeRow(${rowId})">
+        </td>
+        <td>
+          <input type="time" class="form-control form-control-sm" id="ot-am-out-${rowId}"
+                 onchange="calculateOvertimeRow(${rowId})">
+        </td>
+        <td>
+          <input type="time" class="form-control form-control-sm" id="ot-pm-in-${rowId}"
+                 onchange="calculateOvertimeRow(${rowId})">
+        </td>
+        <td>
+          <input type="time" class="form-control form-control-sm" id="ot-pm-out-${rowId}"
+                 onchange="calculateOvertimeRow(${rowId})">
+        </td>
+        <td>
+          <input type="text" class="form-control form-control-sm" id="ot-hours-worked-${rowId}"
+                 readonly style="background-color: #f8f9fa;">
+        </td>
+        <td>
+          <input type="text" class="form-control form-control-sm" id="ot-coc-earned-${rowId}"
+                 readonly style="background-color: #f8f9fa;">
+        </td>
+        <td>
+          <button type="button" class="btn btn-sm btn-danger" onclick="removeOvertimeDay(${rowId})" title="Remove">
+            <i class="bi bi-trash"></i>
+          </button>
+        </td>
+      `;
+
+      tbody.appendChild(row);
+
+      // Add to entries array
+      overtimeEntries.push({
+        rowId: rowId,
+        date: null,
+        displayDate: null,
+        dayType: null,
+        amIn: null,
+        amOut: null,
+        pmIn: null,
+        pmOut: null,
+        hoursWorked: 0,
+        cocEarned: 0
+      });
+    };
+
+    // Remove overtime day row
+    window.removeOvertimeDay = function(rowId) {
+      const row = document.getElementById(`ot-row-${rowId}`);
+      if (row) row.remove();
+
+      // Remove from entries array
+      overtimeEntries = overtimeEntries.filter(entry => entry.rowId !== rowId);
+
+      calculateOvertimeGrandTotal();
+      updateOvertimeProgress();
+    };
+
+    function formatISODateForDisplay(isoDate) {
+      if (!isoDate) return '';
+      const parts = isoDate.split('-').map(Number);
+      if (parts.length !== 3) return isoDate;
+      const [year, month, day] = parts;
+      const date = new Date(year, month - 1, day);
+      if (Number.isNaN(date.getTime())) return isoDate;
+      return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    }
+
+    function resetOvertimeEntryDate(entry, rowId) {
+      if (!entry) return;
+
+      entry.date = null;
+      entry.displayDate = null;
+      entry.dayType = null;
+      entry.isHoliday = false;
+      entry.holidayName = '';
+      entry.hoursWorked = 0;
+      entry.cocEarned = 0;
+      entry.error = null;
+
+      const badge = document.getElementById(`ot-daytype-${rowId}`);
+      if (badge) {
+        badge.textContent = '-';
+        badge.className = 'badge bg-secondary';
+      }
+
+      const hoursField = document.getElementById(`ot-hours-worked-${rowId}`);
+      if (hoursField) hoursField.value = '';
+      const cocField = document.getElementById(`ot-coc-earned-${rowId}`);
+      if (cocField) cocField.value = '';
+    }
+
+    function formatOvertimeEntryLabel(entry) {
+      if (!entry) return 'selected day';
+      if (entry.displayDate) return entry.displayDate;
+      if (entry.date) return formatISODateForDisplay(entry.date);
+      return 'selected day';
+    }
+
+    // On date change - auto-detect day type
+    window.onOvertimeDateChange = async function(rowId) {
+      const dateInput = document.getElementById(`ot-date-${rowId}`);
+      const entry = overtimeEntries.find(e => e.rowId === rowId);
+      if (!dateInput || !entry) return;
+
+      const rawValue = dateInput.value;
+
+      if (!rawValue) {
+        resetOvertimeEntryDate(entry, rowId);
+        calculateOvertimeGrandTotal();
+        updateOvertimeProgress();
+        return;
+      }
+
+      const day = parseInt(rawValue, 10);
+      if (Number.isNaN(day)) {
+        Modal.error('Invalid Day', 'Please enter a valid day number (1-31).');
+        dateInput.value = '';
+        resetOvertimeEntryDate(entry, rowId);
+        calculateOvertimeGrandTotal();
+        updateOvertimeProgress();
+        return;
+      }
+
+      const monthValue = document.getElementById('ot-month').value;
+      const yearValue = document.getElementById('ot-year').value;
+
+      if (monthValue === '' || !yearValue) {
+        Modal.error('Incomplete Selection', 'Please select the overtime month and year first.');
+        dateInput.value = '';
+        resetOvertimeEntryDate(entry, rowId);
+        calculateOvertimeGrandTotal();
+        updateOvertimeProgress();
+        return;
+      }
+
+      const selectedMonth = parseInt(monthValue, 10);
+      const selectedYear = parseInt(yearValue, 10);
+
+      if (Number.isNaN(selectedMonth) || Number.isNaN(selectedYear)) {
+        Modal.error('Invalid Selection', 'Selected month or year is invalid.');
+        dateInput.value = '';
+        resetOvertimeEntryDate(entry, rowId);
+        calculateOvertimeGrandTotal();
+        updateOvertimeProgress();
+        return;
+      }
+
+      const candidateDate = new Date(selectedYear, selectedMonth, day);
+      if (candidateDate.getMonth() !== selectedMonth || candidateDate.getFullYear() !== selectedYear || candidateDate.getDate() !== day) {
+        Modal.error('Invalid Day', 'The entered day is not valid for the selected month.');
+        dateInput.value = '';
+        resetOvertimeEntryDate(entry, rowId);
+        calculateOvertimeGrandTotal();
+        updateOvertimeProgress();
+        return;
+      }
+
+      const isoDate = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const comparisonDate = new Date(candidateDate);
+      comparisonDate.setHours(0, 0, 0, 0);
+      if (comparisonDate > today) {
+        Modal.error('Invalid Date', 'Future dates are not allowed.');
+        dateInput.value = '';
+        resetOvertimeEntryDate(entry, rowId);
+        calculateOvertimeGrandTotal();
+        updateOvertimeProgress();
+        return;
+      }
+
+      const duplicateCount = overtimeEntries.filter(item => item.rowId !== rowId && item.date === isoDate).length;
+      if (duplicateCount > 0) {
+        Modal.error('Duplicate Date', 'This day has already been entered for the selected month.');
+        dateInput.value = '';
+        resetOvertimeEntryDate(entry, rowId);
+        calculateOvertimeGrandTotal();
+        updateOvertimeProgress();
+        return;
+      }
+
+      entry.date = isoDate;
+      entry.displayDate = formatISODateForDisplay(isoDate);
+
+      let resolvedDayType = 'weekday';
+      let isHoliday = false;
+      let holidayName = '';
+
+      const badge = document.getElementById(`ot-daytype-${rowId}`);
+
+      try {
+        const dayTypeResult = await new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(reject)
+            .getDayType_SERVER(isoDate);
+        });
+
+        if (badge) {
+          if (dayTypeResult.isHoliday) {
+            badge.textContent = `Holiday (${dayTypeResult.holidayName})`;
+            badge.className = 'badge bg-danger';
+          } else if (dayTypeResult.isWeekend) {
+            badge.textContent = 'Weekend';
+            badge.className = 'badge bg-warning text-dark';
+          } else {
+            badge.textContent = 'Weekday';
+            badge.className = 'badge bg-primary';
+          }
+        }
+
+        if (dayTypeResult.isHoliday) {
+          resolvedDayType = 'holiday';
+          isHoliday = true;
+          holidayName = dayTypeResult.holidayName || '';
+        } else if (dayTypeResult.isWeekend) {
+          resolvedDayType = 'weekend';
+        }
+      } catch (error) {
+        console.error('Error detecting day type:', error);
+        if (badge) {
+          badge.textContent = 'Weekday';
+          badge.className = 'badge bg-primary';
+        }
+      }
+
+      entry.dayType = resolvedDayType;
+      entry.isHoliday = isHoliday;
+      entry.holidayName = holidayName;
+
+      calculateOvertimeRow(rowId);
+    };
+
+    // Calculate overtime for a single row
+    window.calculateOvertimeRow = function(rowId) {
+      const entry = overtimeEntries.find(e => e.rowId === rowId);
+      if (!entry || !entry.date) return;
+
+      const amIn = document.getElementById(`ot-am-in-${rowId}`).value;
+      const amOut = document.getElementById(`ot-am-out-${rowId}`).value;
+      const pmIn = document.getElementById(`ot-pm-in-${rowId}`).value;
+      const pmOut = document.getElementById(`ot-pm-out-${rowId}`).value;
+
+      // Update entry
+      entry.amIn = amIn;
+      entry.amOut = amOut;
+      entry.pmIn = pmIn;
+      entry.pmOut = pmOut;
+
+      // Validate time inputs
+      let isValid = true;
+      let errorMsg = '';
+
+      // AM validation
+      if (amIn && amOut) {
+        const amInTime = parseTime(amIn);
+        const amOutTime = parseTime(amOut);
+
+        if (amInTime >= parseTime('13:00')) {
+          errorMsg = 'AM In must be before 1:00 PM';
+          isValid = false;
+        } else if (amOutTime < parseTime('08:00') || amOutTime >= parseTime('13:00')) {
+          errorMsg = 'AM Out must be between 8:00 AM and 12:59 PM';
+          isValid = false;
+        } else if (amOutTime <= amInTime) {
+          errorMsg = 'AM Out must be after AM In';
+          isValid = false;
+        }
+      } else if (amIn || amOut) {
+        errorMsg = 'Both AM In and AM Out must be filled';
+        isValid = false;
+      }
+
+      // PM validation
+      if (pmIn && pmOut) {
+        const pmInTime = parseTime(pmIn);
+        const pmOutTime = parseTime(pmOut);
+
+        if (pmInTime < parseTime('12:00')) {
+          errorMsg = 'PM In must be 12:00 PM or later';
+          isValid = false;
+        } else if (pmOutTime < parseTime('12:00')) {
+          errorMsg = 'PM Out must be 12:00 PM or later';
+          isValid = false;
+        } else if (pmOutTime <= pmInTime) {
+          errorMsg = 'PM Out must be after PM In';
+          isValid = false;
+        }
+      } else if (pmIn || pmOut) {
+        errorMsg = 'Both PM In and PM Out must be filled';
+        isValid = false;
+      }
+
+      // Noon break validation
+      if (amOut && pmIn) {
+        if (parseTime(pmIn) <= parseTime(amOut)) {
+          errorMsg = 'PM In must be after AM Out (noon break required)';
+          isValid = false;
+        }
+      }
+
+      if (!isValid) {
+        entry.hoursWorked = 0;
+        entry.cocEarned = 0;
+        entry.error = errorMsg;
+      } else {
+        entry.error = null;
+
+        // Calculate hours worked and COC earned
+        const result = calculateOvertimeHours(entry.dayType || 'weekday', amIn, amOut, pmIn, pmOut);
+        entry.hoursWorked = result.hoursWorked;
+        entry.cocEarned = result.cocEarned;
+      }
+
+      // Update display
+      document.getElementById(`ot-hours-worked-${rowId}`).value = entry.hoursWorked.toFixed(1);
+      document.getElementById(`ot-coc-earned-${rowId}`).value = entry.cocEarned.toFixed(1);
+
+      calculateOvertimeGrandTotal();
+      updateOvertimeProgress();
+    };
+
+    // Helper: Parse time string to minutes
+    function parseTime(timeStr) {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      return hours * 60 + minutes;
+    }
+
+    // Helper: Calculate overlap between two time ranges
+    function calculateOverlap(start1, end1, start2, end2) {
+      const overlapStart = Math.max(start1, start2);
+      const overlapEnd = Math.min(end1, end2);
+      return Math.max(0, overlapEnd - overlapStart);
+    }
+
+    // Calculate overtime hours based on time windows
+    function calculateOvertimeHours(dayType, amIn, amOut, pmIn, pmOut) {
+      let hoursWorked = 0;
+      let cocEarned = 0;
+
+      if (dayType === 'weekday') {
+        // Weekday: Only PM window 5:00 PM - 7:00 PM (17:00-19:00), rate 1.0x, max 2 hours
+        if (pmIn && pmOut) {
+          const pmInTime = parseTime(pmIn);
+          const pmOutTime = parseTime(pmOut);
+          const windowStart = parseTime('17:00');
+          const windowEnd = parseTime('19:00');
+
+          const overlap = calculateOverlap(pmInTime, pmOutTime, windowStart, windowEnd);
+          const hours = Math.min(overlap / 60, 2.0); // Max 2 hours
+          hoursWorked += hours;
+          cocEarned += hours * 1.0; // 1.0x rate
+        }
+      } else {
+        // Weekend/Holiday: AM window 8:00 AM - 12:00 PM, PM window 1:00 PM - 5:00 PM (13:00-17:00), rate 1.5x
+
+        // AM window
+        if (amIn && amOut) {
+          const amInTime = parseTime(amIn);
+          const amOutTime = parseTime(amOut);
+          const windowStart = parseTime('08:00');
+          const windowEnd = parseTime('12:00');
+
+          const overlap = calculateOverlap(amInTime, amOutTime, windowStart, windowEnd);
+          const hours = overlap / 60;
+          hoursWorked += hours;
+          cocEarned += hours * 1.5; // 1.5x rate
+        }
+
+        // PM window
+        if (pmIn && pmOut) {
+          const pmInTime = parseTime(pmIn);
+          const pmOutTime = parseTime(pmOut);
+          const windowStart = parseTime('13:00');
+          const windowEnd = parseTime('17:00');
+
+          const overlap = calculateOverlap(pmInTime, pmOutTime, windowStart, windowEnd);
+          const hours = overlap / 60;
+          hoursWorked += hours;
+          cocEarned += hours * 1.5; // 1.5x rate
+        }
+      }
+
+      return { hoursWorked, cocEarned };
+    }
+
+    // Calculate grand total
+    function calculateOvertimeGrandTotal() {
+      const totalHoursWorked = overtimeEntries.reduce((sum, entry) => sum + Number(entry.hoursWorked || 0), 0);
+      const totalCocEarned = overtimeEntries.reduce((sum, entry) => sum + Number(entry.cocEarned || 0), 0);
+
+      document.getElementById('ot-grand-hours-worked').textContent = totalHoursWorked.toFixed(1);
+      document.getElementById('ot-grand-coc-earned').textContent = totalCocEarned.toFixed(1);
+    }
+
+    // Submit overtime form
+    window.submitOvertimeForm = async function() {
+      const employeeId = document.getElementById('ot-employee').value;
+      const month = parseInt(document.getElementById('ot-month').value);
+      const year = parseInt(document.getElementById('ot-year').value);
+
+      // Validation
+      if (!employeeId || month === '' || !year) {
+        Modal.error('Validation Error', 'Please select employee, month, and year.');
+        return;
+      }
+
+      if (overtimeEntries.length === 0) {
+        Modal.error('Validation Error', 'Please add at least one overtime entry.');
+        return;
+      }
+
+      // Validate all entries have required data
+      for (const entry of overtimeEntries) {
+        if (!entry.date) {
+          Modal.error('Validation Error', 'All entries must have a date.');
+          return;
+        }
+
+        const entryLabel = formatOvertimeEntryLabel(entry);
+
+        if (!entry.amIn && !entry.amOut && !entry.pmIn && !entry.pmOut) {
+          Modal.error('Validation Error', `Entry for ${entryLabel} has no time inputs.`);
+          return;
+        }
+        if (entry.error) {
+          Modal.error('Validation Error', `Entry for ${entryLabel}: ${entry.error}`);
+          return;
+        }
+      }
+
+      // Check monthly cap
+      const totalCocEarned = overtimeEntries.reduce((sum, entry) => sum + Number(entry.cocEarned || 0), 0);
+      const newMonthlyTotal = overtimeMonthlyTotal + totalCocEarned;
+
+      if (newMonthlyTotal > 40) {
+        Modal.error('Monthly Cap Exceeded',
+          `Total would be ${newMonthlyTotal.toFixed(1)} hours, exceeding the 40-hour monthly accrual cap.`);
+        return;
+      }
+
+      // Check total balance cap
+      const currentOvertimeBalance = (typeof overtimeTotalBalance !== 'undefined') ? overtimeTotalBalance : 0;
+      const newTotalBalance = currentOvertimeBalance + totalCocEarned;
+      if (newTotalBalance > 120) {
+        Modal.error('Total Balance Cap Exceeded',
+          `Total balance would be ${newTotalBalance.toFixed(1)} hours, exceeding the 120-hour cap.`);
+        return;
+      }
+
+      // Show spinner
+      const spinner = document.getElementById('ot-submit-spinner');
+      spinner.classList.remove('d-none');
+
+      try {
+        const result = await new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(reject)
+            .logOvertimeBatch_SERVER({
+              employeeId: employeeId,
+              month: month,
+              year: year,
+              entries: overtimeEntries.map(entry => ({
+                date: entry.date,
+                dayType: entry.dayType,
+                isHoliday: entry.isHoliday,
+                holidayName: entry.holidayName,
+                amIn: entry.amIn,
+                amOut: entry.amOut,
+                pmIn: entry.pmIn,
+                pmOut: entry.pmOut,
+                hoursWorked: entry.hoursWorked,
+                cocEarned: entry.cocEarned
+              }))
+            });
+        });
+
+        if (result.success) {
+          const message = `
+            <div style="text-align: center;">
+              <h4 class="text-success mb-3">${result.count} overtime log(s) created</h4>
+              <div class="mb-3">
+                <h5 class="text-primary mb-0">${result.totalCocEarned.toFixed(1)} hours</h5>
+                <small class="text-muted">Total COC Earned (Uncertified)</small>
+              </div>
+              <p class="text-muted mb-0">Generate a certificate to activate these credits.</p>
+            </div>
+          `;
+          Modal.success('Overtime Logged Successfully!', message);
+
+          // Reset form
+          overtimeEntries = [];
+          document.getElementById('ot-entries-tbody').innerHTML = '';
+          calculateOvertimeGrandTotal();
+          updateOvertimeContext();
+        } else {
+          Modal.error('Error', result.error);
+        }
+      } catch (error) {
+        Modal.error('Error', 'Failed to log overtime: ' + error);
+      } finally {
+        spinner.classList.add('d-none');
+      }
+    };
+
+    // Click outside to close dropdown
+    document.addEventListener('click', function(e) {
+      const otContainer = document.querySelector('#ot-employee-search')?.closest('.searchable-select-container');
+      if (otContainer && !otContainer.contains(e.target)) {
+        hideOvertimeEmployeeDropdown();
+      }
+    });
+
+    document.getElementById('ctoForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const data = {
+        employeeId: document.getElementById('cto-employee').value,
+        ctoDate: document.getElementById('cto-date').value,
+        hoursUsed: document.getElementById('cto-hours').value,
+        remarks: document.getElementById('cto-remarks').value
+      };
+
+      try {
+        const result = await new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(reject)
+            .logCto_SERVER(data);
+        });
+
+        if (result.success) {
+          const message = `Hours Used: ${result.hoursUsed}\nNew Balance: ${result.newBalance.toFixed(2)} hours`;
+          Modal.success('CTO Logged!', message);
+          e.target.reset();
+          document.getElementById('cto-available-balance').textContent = '0.00';
+        } else {
+          Modal.error('Error', result.error);
+        }
+      } catch (error) {
+        Modal.error('Error', 'Error logging CTO: ' + error);
+      }
+    });
+
+    document.getElementById('historicalForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const form = e.target;
+      const submitBtn = document.getElementById('hist-submit-btn');
+      const btnText = submitBtn.querySelector('.btn-text');
+      const spinner = submitBtn.querySelector('.spinner-border');
+
+      form.classList.add('was-validated');
+
+      if (!form.checkValidity()) {
+        return;
+      }
+
+      const cocEarned = parseFloat(document.getElementById('hist-coc-earned').value);
+      const cocUsed = parseFloat(document.getElementById('hist-coc-used').value) || 0;
+
+      // Additional validation
+      if (cocUsed > cocEarned) {
+        Modal.error('Validation Error', 'COC Used cannot exceed COC Earned');
+        return;
+      }
+
+      if (cocUsed > 0 && cocUsed % 4 !== 0) {
+        Modal.error('Validation Error', 'COC Used must be in blocks of 4 hours (4, 8, 12, 16, etc.)');
+        return;
+      }
+
+      const isEdit = document.getElementById('hist-is-edit').value === 'true';
+      const batchId = document.getElementById('hist-batch-id').value;
+
+      const data = {
+        employeeId: document.getElementById('hist-employee').value,
+        monthYear: document.getElementById('hist-month-year').value,
+        cocEarned: cocEarned,
+        cocUsed: cocUsed,
+        dateOfIssuance: document.getElementById('hist-date-issuance').value
+      };
+
+      if (isEdit) {
+        data.batchId = batchId;
+      }
+
+      // Show spinner
+      submitBtn.disabled = true;
+      btnText.classList.add('d-none');
+      spinner.classList.remove('d-none');
+
+      try {
+        const serverFunction = isEdit ? 'updateHistoricalBalance_SERVER' : 'migrateHistoricalBalance_SERVER';
+        const result = await new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(reject)
+            [serverFunction](data);
+        });
+
+        if (result.success) {
+          const message = `
+            <div style="text-align: center;">
+              <div class="mb-3">
+                <h4 class="text-primary mb-0">${result.remainingHours} hours</h4>
+                <small class="text-muted">Remaining Balance</small>
+              </div>
+              <div class="d-flex justify-content-around">
+                <div>
+                  <strong>Valid Until:</strong><br>
+                  ${result.validUntil}
+                </div>
+                <div>
+                  <strong>Status:</strong><br>
+                  <span class="badge bg-success">${result.status}</span>
+                </div>
+              </div>
+            </div>
+          `;
+          Modal.success(isEdit ? 'Historical Balance Updated!' : 'Historical Balance Migrated!', message);
+
+          // Reset form using reset function
+          resetHistoricalForm();
+
+          // The list will auto-update via onSnapshot listener
+        } else {
+          Modal.error('Migration Error', result.error);
+        }
+      } catch (error) {
+        Modal.error('Error', 'Error migrating balance: ' + error);
+      } finally {
+        // Hide spinner
+        submitBtn.disabled = false;
+        btnText.classList.remove('d-none');
+        spinner.classList.add('d-none');
+      }
+    });
+
+    document.getElementById('configForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const data = {
+        regularDayMultiplier: parseFloat(document.getElementById('config-regular').value),
+        restDayMultiplier: parseFloat(document.getElementById('config-restday').value),
+        holidayMultiplier: parseFloat(document.getElementById('config-holiday').value),
+        monthlyAccrualCap: parseInt(document.getElementById('config-monthly-cap').value),
+        totalBalanceCap: parseInt(document.getElementById('config-total-cap').value),
+        expiryMonths: parseInt(document.getElementById('config-expiry-months').value)
+      };
+
+      try {
+        const result = await new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(reject)
+            .saveConfiguration_SERVER(data);
+        });
+
+        if (result.success) {
+          Modal.success('Success!', 'Configuration saved successfully!');
+        } else {
+          Modal.error('Error', result.error);
+        }
+      } catch (error) {
+        Modal.error('Error', 'Error saving configuration: ' + error);
+      }
+    });
+
+    window.resetEmployeeForm = function() {
+      const form = document.getElementById('employeeForm');
+      form.reset();
+      form.classList.remove('was-validated');
+      document.querySelectorAll('.form-control, .form-select').forEach(el => {
+        el.classList.remove('is-invalid');
+      });
+      document.getElementById('emp-id-hidden').value = '';
+      document.getElementById('emp-id-display').style.display = 'none';
+      document.getElementById('employeeModalTitle').textContent = 'Add Employee';
+      document.getElementById('emp-status').value = 'Active';
+    };
+
+    window.saveEmployee = async function() {
+      const form = document.getElementById('employeeForm');
+      const saveBtn = document.getElementById('saveEmployeeBtn');
+      const btnText = saveBtn.querySelector('.btn-text');
+      const spinner = saveBtn.querySelector('.spinner-border');
+      
+      document.querySelectorAll('.form-control, .form-select').forEach(el => {
+        el.classList.remove('is-invalid');
+      });
+
+      const requiredFields = [
+        { id: 'emp-fname', name: 'First Name' },
+        { id: 'emp-lname', name: 'Last Name' },
+        { id: 'emp-office', name: 'Office' },
+        { id: 'emp-position', name: 'Position' },
+        { id: 'emp-status', name: 'Status' }
+      ];
+
+      let hasErrors = false;
+      requiredFields.forEach(field => {
+        const element = document.getElementById(field.id);
+        if (!element.value || element.value.trim() === '') {
+          element.classList.add('is-invalid');
+          hasErrors = true;
+        }
+      });
+
+      if (hasErrors) {
+        return;
+      }
+
+      const isUpdate = document.getElementById('emp-id-hidden').value !== '';
+      const employeeId = document.getElementById('emp-id-hidden').value;
+      const statusValue = document.getElementById('emp-status').value;
+      
+      const data = {
+        firstName: document.getElementById('emp-fname').value,
+        lastName: document.getElementById('emp-lname').value,
+        middleName: document.getElementById('emp-mname').value,
+        suffix: document.getElementById('emp-suffix').value,
+        office: document.getElementById('emp-office').value,
+        position: document.getElementById('emp-position').value,
+        isActive: statusValue === 'Active'
+      };
+
+      try {
+        saveBtn.disabled = true;
+        btnText.classList.add('d-none');
+        spinner.classList.remove('d-none');
+
+        const result = await new Promise((resolve, reject) => {
+          if (isUpdate) {
+            google.script.run
+              .withSuccessHandler(resolve)
+              .withFailureHandler(reject)
+              .updateEmployee_SERVER(employeeId, data);
+          } else {
+            google.script.run
+              .withSuccessHandler(resolve)
+              .withFailureHandler(reject)
+              .addEmployee_SERVER(data);
+          }
+        });
+
+        if (result.success) {
+          const title = isUpdate ? 'Employee Updated!' : 'Employee Added!';
+          const message = isUpdate 
+            ? 'Employee information updated successfully.' 
+            : `Employee ID: ${result.employeeId}`;
+          Modal.success(title, message);
+          bootstrap.Modal.getInstance(document.getElementById('employeeModal')).hide();
+          form.reset();
+        } else {
+          Modal.error('Error', result.error);
+        }
+      } catch (error) {
+        Modal.error('Error', 'Error saving employee: ' + error);
+      } finally {
+        saveBtn.disabled = false;
+        btnText.classList.remove('d-none');
+        spinner.classList.add('d-none');
+      }
+    };
+
+    window.editEmployee = function(employeeId) {
+      const emp = employeesData.find(e => e.employeeId === employeeId);
+      if (!emp) return;
+
+      document.getElementById('emp-id-hidden').value = employeeId;
+      document.getElementById('emp-id-text').textContent = employeeId;
+      document.getElementById('emp-id-display').style.display = 'block';
+      document.getElementById('emp-fname').value = emp.firstName;
+      document.getElementById('emp-mname').value = emp.middleName || '';
+      document.getElementById('emp-lname').value = emp.lastName;
+      document.getElementById('emp-suffix').value = emp.suffix || '';
+      document.getElementById('emp-office').value = emp.office;
+      document.getElementById('emp-position').value = emp.position;
+      document.getElementById('emp-status').value = emp.isActive ? 'Active' : 'Inactive';
+      
+      document.getElementById('employeeModalTitle').textContent = 'Edit Employee';
+      
+      new bootstrap.Modal(document.getElementById('employeeModal')).show();
+    };
+
+    window.resetHolidayForm = function() {
+      document.getElementById('holidayForm').reset();
+    };
+
+    window.saveHoliday = async function() {
+      const form = document.getElementById('holidayForm');
+      if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+      }
+
+      const data = {
+        date: document.getElementById('hol-date').value,
+        name: document.getElementById('hol-name').value,
+        type: document.getElementById('hol-type').value,
+        isRecurring: document.getElementById('hol-recurring').checked
+      };
+
+      try {
+        const result = await new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(reject)
+            .addHoliday_SERVER(data);
+        });
+
+        if (result.success) {
+          Modal.success('Success!', 'Holiday added successfully!');
+          bootstrap.Modal.getInstance(document.getElementById('holidayModal')).hide();
+          form.reset();
+        } else {
+          Modal.error('Error', result.error);
+        }
+      } catch (error) {
+        Modal.error('Error', 'Error adding holiday: ' + error);
+      }
+    };
+
+    window.deleteHoliday = async function(holidayId) {
+      Modal.confirm(
+        'Delete Holiday',
+        'Are you sure you want to delete this holiday? This action cannot be undone.',
+        async function() {
+          try {
+            const result = await new Promise((resolve, reject) => {
+              google.script.run
+                .withSuccessHandler(resolve)
+                .withFailureHandler(reject)
+                .deleteHoliday_SERVER(holidayId);
+            });
+
+            if (result.success) {
+              Modal.success('Success!', 'Holiday deleted successfully!');
+            } else {
+              Modal.error('Error', result.error);
+            }
+          } catch (error) {
+            Modal.error('Error', 'Error deleting holiday: ' + error);
+          }
+        }
+      );
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+      initFirebase();
+
+      // Lazy rendering for employee tabs - only render when tab is shown
+      document.querySelector('a[href="#active-employees-tab"]')?.addEventListener('shown.bs.tab', function() {
+        renderEmployeesTable('active');
+      });
+
+      document.querySelector('a[href="#inactive-employees-tab"]')?.addEventListener('shown.bs.tab', function() {
+        renderEmployeesTable('inactive');
+      });
+
+      // Lazy rendering for library tabs - only render when tab is shown
+      document.querySelector('a[href="#offices-tab"]')?.addEventListener('shown.bs.tab', function() {
+        renderLibraryTable('offices');
+      });
+
+      document.querySelector('a[href="#positions-tab"]')?.addEventListener('shown.bs.tab', function() {
+        renderLibraryTable('positions');
+      });
+
+      // Fix for Bootstrap tabs not firing correctly on first click
+      document.querySelectorAll('#employeeTabs a[data-bs-toggle="tab"], #libraryTabs a[data-bs-toggle="tab"]').forEach(tabEl => {
+        tabEl.addEventListener('click', function (event) {
+          event.preventDefault(); // Ensure default href jump is stopped
+          try {
+            // 'this' is the clicked a[data-bs-toggle="tab"]
+            const tab = new bootstrap.Tab(this);
+            tab.show();
+          } catch (e) {
+            console.error('Error showing tab:', e);
+          }
+        });
+      });
+
+      // Fix dropdown hover state persistence
+      document.querySelectorAll('.dropdown-item').forEach(item => {
+        item.addEventListener('click', function() {
+          this.blur();
+          // Close the dropdown
+          const dropdown = this.closest('.dropdown');
+          if (dropdown) {
+            const toggle = dropdown.querySelector('[data-bs-toggle="dropdown"]');
+            if (toggle) {
+              bootstrap.Dropdown.getInstance(toggle)?.hide();
+            }
+          }
+        });
+      });
+    });
+
+    window.showAddLibraryModal = function(type) {
+      document.getElementById('lib-item-id').value = '';
+      document.getElementById('lib-type').value = type;
+      document.getElementById('lib-name').value = '';
+      
+      const typeName = type === 'offices' ? 'Office' : 'Position';
+      document.getElementById('libraryModalTitle').textContent = `Add ${typeName}`;
+      document.getElementById('libraryItemLabel').textContent = `${typeName} Name`;
+      
+      new bootstrap.Modal(document.getElementById('libraryModal')).show();
+    };
+
+    window.editLibraryItem = function(type, itemId, currentName) {
+      document.getElementById('lib-item-id').value = itemId;
+      document.getElementById('lib-type').value = type;
+      document.getElementById('lib-name').value = currentName;
+      
+      const typeName = type === 'offices' ? 'Office' : 'Position';
+      document.getElementById('libraryModalTitle').textContent = `Edit ${typeName}`;
+      document.getElementById('libraryItemLabel').textContent = `${typeName} Name`;
+      
+      new bootstrap.Modal(document.getElementById('libraryModal')).show();
+    };
+
+    window.saveLibraryItem = async function() {
+      const form = document.getElementById('libraryForm');
+      if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+      }
+
+      const itemId = document.getElementById('lib-item-id').value;
+      const type = document.getElementById('lib-type').value;
+      const name = document.getElementById('lib-name').value;
+
+      try {
+        const isUpdate = itemId !== '';
+        const result = await new Promise((resolve, reject) => {
+          if (isUpdate) {
+            google.script.run
+              .withSuccessHandler(resolve)
+              .withFailureHandler(reject)
+              .updateLibraryItem_SERVER(type, itemId, { name });
+          } else {
+            google.script.run
+              .withSuccessHandler(resolve)
+              .withFailureHandler(reject)
+              .addLibraryItem_SERVER(type, { name });
+          }
+        });
+
+        if (result.success) {
+          const title = isUpdate ? 'Item Updated!' : 'Item Added!';
+          Modal.success(title, isUpdate ? 'Item updated successfully!' : 'Item added successfully!');
+          bootstrap.Modal.getInstance(document.getElementById('libraryModal')).hide();
+          form.reset();
+        } else {
+          Modal.error('Error', result.error);
+        }
+      } catch (error) {
+        Modal.error('Error', 'Error saving item: ' + error);
+      }
+    };
+
+    window.deleteLibraryItem = async function(type, itemId, itemName) {
+      Modal.confirm(
+        'Delete Item',
+        `Are you sure you want to delete "${itemName}"? This action cannot be undone.`,
+        async function() {
+          try {
+            const result = await new Promise((resolve, reject) => {
+              google.script.run
+                .withSuccessHandler(resolve)
+                .withFailureHandler(reject)
+                .deleteLibraryItem_SERVER(type, itemId);
+            });
+
+            if (result.success) {
+              Modal.success('Success!', 'Item deleted successfully!');
+            } else {
+              Modal.error('Error', result.error);
+            }
+          } catch (error) {
+            Modal.error('Error', 'Error deleting item: ' + error);
+          }
+        }
+      );
+    };
+
+    // Fix for active state on page navigation
+    document.querySelectorAll('a[data-page]').forEach(link => {
+      link.addEventListener('click', function(e) {
+        e.preventDefault();
+        const page = this.dataset.page;
+
+        document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'));
+        document.getElementById(`page-${page}`).classList.add('active');
+
+        // Remove active class from ALL nav links first
+        document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+
+        // Add active class to the clicked link
+        this.classList.add('active');
+
+        // Check if the link is inside a dropdown
+        const dropdownMenu = this.closest('.dropdown-menu');
+        if (dropdownMenu) {
+          // If it is, add 'active' to the dropdown toggle as well
+          const dropdownToggle = dropdownMenu.previousElementSibling;
+          if (dropdownToggle && dropdownToggle.classList.contains('dropdown-toggle')) {
+            dropdownToggle.classList.add('active');
+          }
+        }
+
+        // Set default active tabs for Employees and Libraries pages
+        if (page === 'employees') {
+          // Activate the "Active Employees" tab
+          const activeTab = document.querySelector('a[href="#active-employees-tab"]');
+          if (activeTab) {
+            const tab = new bootstrap.Tab(activeTab);
+            tab.show();
+          }
+        } else if (page === 'libraries') {
+          // Activate the "Offices" tab
+          const officesTab = document.querySelector('a[href="#offices-tab"]');
+          if (officesTab) {
+            const tab = new bootstrap.Tab(officesTab);
+            tab.show();
+          }
+        }
+      });
+    });
+  </script>
+</body>
+</html>
